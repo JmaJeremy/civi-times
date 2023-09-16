@@ -84,12 +84,14 @@ def scrape_simcoe():
     service = ChromeService(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
     driver.get(URL)
-    time.sleep(5)
+    pprint(driver)
+    time.sleep(10)
     page = driver.page_source
+    pprint(page)
 
     soup = BeautifulSoup(page, "html.parser")
     results = soup.find(id="ctl00_MainColumn")
-    #pprint(results)
+    pprint(results)
     event_elements = results.find_all('div', class_="calendar-meetings-link-container")
 
     events = []
@@ -108,7 +110,7 @@ def scrape_simcoe():
         tmpev['location'] = event_element.find("div", class_="meeting-location").text.strip()
         
         event = {}
-        title_re =  re.search(r'▪(.+) - ([0-9a-zA-Z ]+)', tmpev['title'])
+        title_re =  re.search(r'.(.+) - ([0-9a-zA-Z ]+)', tmpev['title'])
         event['name'] = title_re.group(1)
         event['date'] = title_re.group(2)
         event['time'] = re.search(r'Time: (.+)', tmpev['time']).group(1)
