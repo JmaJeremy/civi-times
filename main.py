@@ -14,6 +14,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.chrome.service import Service as ChromeService
 from webdriver_manager.chrome import ChromeDriverManager
 import time
+import os
 
 #from PyQt6.QtWidgets import QApplication
 #from PyQt6.QtCore import QUrl
@@ -50,7 +51,10 @@ def scrape_barrie():
         event['name'] = event_element.find("a", id=re.compile('.*hypBody')).text.strip()
         event['date'] = event_element.find("td", class_="rgSorted").text.strip()
         event['time'] = event_element.find("span", id=re.compile('.*lblTime')).text.strip()
-        event['link'] = "https://barrie.legistar.com/" + str(event_element.find("a", id=re.compile('.*hypMeetingDetail')).get("href")).strip()
+        linkpart = str(event_element.find("a", id=re.compile('.*hypMeetingDetail')).get("href")).strip()
+        if (linkpart == 'None'):
+            linkpart = ''
+        event['link'] = "https://barrie.legistar.com/" + linkpart
 
         event['key'] = hashlib.sha256(json.dumps(event, sort_keys=True).encode('utf-8')).hexdigest()
 
@@ -83,11 +87,13 @@ def scrape_simcoe():
     options.add_argument('--headless')
     service = ChromeService(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
+    driver.set_page_load_timeout(30)
     driver.get(URL)
     pprint(driver)
     time.sleep(10)
     page = driver.page_source
     pprint(page)
+    os.system('pkill -9 -f chrome')
 
     soup = BeautifulSoup(page, "html.parser")
     results = soup.find(id="ctl00_MainColumn")
@@ -136,7 +142,7 @@ def push_to_mongo(events):
     uri = "mongodb+srv://cluster0.znrn6ji.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority"
     client = MongoClient(uri,
                         tls=True,
-                        tlsCertificateKeyFile='/mnt/c/Users/jmaje/Downloads/X509-cert-4642243331306089962.pem')
+                        tlsCertificateKeyFile='/home/ubuntu/X509-cert-4642243331306089962.pem')
     db = client['testDB']
     collection = db['testCol']
     for event in events:
@@ -158,9 +164,15 @@ def push_to_mongo(events):
 
 groups = {}
 print("Scraping Barrie city council website...")
-groups['barrie'] = scrape_barrie()
+try:
+    groups['barrie'] = scrape_barrie()
+except Exception as e:
+    print("An error occurred scraping the Barrie website: ", e)
 print("Scraping Simcoe County council website...")
-groups['simcoe'] = scrape_simcoe()
+try:
+    groups['simcoe'] = scrape_simcoe()
+except Exception as e:
+    print("An error occurred while scraping the Simcoe County website: ", e)
 
 print("Writing results to database...")
 for group in groups.values():
