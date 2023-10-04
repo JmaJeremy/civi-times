@@ -58,6 +58,8 @@ def scrape_barrie():
 
         event['key'] = hashlib.sha256(json.dumps(event, sort_keys=True).encode('utf-8')).hexdigest()
 
+        event['location'] = event_element.findAll('td')[4].text.strip()
+
         if event['date'] and event['time']:
             dt_str = event['date'] + " " + event['time']        
         elif event['date']:
@@ -72,7 +74,7 @@ def scrape_barrie():
         events.append(event)
         #pprint(event)
 
-    pprint(events)
+    #pprint(events)
     return events
 
 def scrape_simcoe():
@@ -84,6 +86,7 @@ def scrape_simcoe():
     page = requests.get(URL)
 
     options = webdriver.ChromeOptions()
+    options.add_argument('--no-sandbox')
     options.add_argument('--headless')
     service = ChromeService(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=options)
@@ -92,18 +95,18 @@ def scrape_simcoe():
     pprint(driver)
     time.sleep(10)
     page = driver.page_source
-    pprint(page)
+    #pprint(page)
     os.system('pkill -9 -f chrome')
 
     soup = BeautifulSoup(page, "html.parser")
     results = soup.find(id="ctl00_MainColumn")
-    pprint(results)
+    #pprint(results)
     event_elements = results.find_all('div', class_="calendar-meetings-link-container")
 
     events = []
 
     for event_element in event_elements:
-        pprint(event_element)
+        #pprint(event_element)
         tmpev = {}
         try:
             tmpev['title'] = event_element.find("a", class_="calendar-date-meeting-link").text.strip()
@@ -135,14 +138,14 @@ def scrape_simcoe():
         #pprint(event)
         events.append(event)
 
-    pprint(events)
+    #pprint(events)
     return events
 
 def push_to_mongo(events):
     uri = "mongodb+srv://cluster0.znrn6ji.mongodb.net/?authSource=%24external&authMechanism=MONGODB-X509&retryWrites=true&w=majority"
     client = MongoClient(uri,
                         tls=True,
-                        tlsCertificateKeyFile='/home/ubuntu/X509-cert-4642243331306089962.pem')
+                        tlsCertificateKeyFile='./X509-cert-4642243331306089962.pem')
     db = client['testDB']
     collection = db['testCol']
     for event in events:
