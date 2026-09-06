@@ -1,12 +1,14 @@
 import { buildIcal, type CanonicalEvent } from '@civi-times/core'
 import { buildQuery, parseFilters, rowToEvent } from './query.ts'
 
+interface D1Statement {
+  all<T>(): Promise<{ results: T[] }>
+  first<T>(): Promise<T | null>
+}
+
 export interface Env {
   DB: {
-    prepare(q: string): {
-      bind(...v: unknown[]): { all<T>(): Promise<{ results: T[] }>; first<T>(): Promise<T | null> }
-      all<T>(): Promise<{ results: T[] }>
-    }
+    prepare(query: string): D1Statement & { bind(...values: unknown[]): D1Statement }
   }
   ASSETS: { fetch(request: Request): Promise<Response> }
 }
@@ -39,12 +41,16 @@ export default {
     const url = new URL(request.url)
 
     try {
-      if (url.pathname === '/api/events') {
+      // '/api/events' collides with a common analytics endpoint pattern (PostHog and
+      // Plausible both use '/api/event'), so privacy blockers silently drop it and the
+      // page fails with a bare "Failed to fetch". The canonical path avoids that; the
+      // old one stays as an alias so existing links keep working.
+      if (url.pathname === '/api/meetings' || url.pathname === '/api/events') {
         const events = await queryEvents(env, url)
         return json({ count: events.length, events }, 600)
       }
 
-      if (url.pathname === '/api/jurisdictions') {
+      if (url.pathname === '/api/places' || url.pathname === '/api/jurisdictions') {
         const { results } = await env.DB.prepare(
           `SELECT j.slug, j.name, j.level, j.homepage, j.platform,
                   COUNT(e.id) AS event_count,
@@ -56,13 +62,19 @@ export default {
         return json(results, 600)
       }
 
-      if (url.pathname === '/api/meeting-types') {
+      if (url.pathname === '/api/committees' || url.pathname === '/api/meeting-types') {
         const { results } = await env.DB.prepare(
           `SELECT meeting_type AS type, COUNT(*) AS count
              FROM events WHERE meeting_type IS NOT NULL
             GROUP BY meeting_type ORDER BY count DESC`,
         ).all<unknown>()
         return json(results, 600)
+      }
+
+      // Used by the front end to distinguish a blocked request from a real outage.
+      if (url.pathname === '/health') {
+        const row = await env.DB.prepare('SELECT COUNT(*) AS n FROM events').first<{ n: number }>()
+        return json({ ok: true, events: row?.n ?? 0 }, 60)
       }
 
       // The feature the upstream platforms do not offer at all: a subscribable feed.

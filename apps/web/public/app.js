@@ -157,9 +157,12 @@ function renderEvent(e) {
 
 function updateStats(shown) {
   const total = state.events.length
+  // Derived from the events themselves so the count is still right if the places
+  // lookup failed and we are falling back to slugs for labels.
+  const places = state.jurisdictions.size || new Set(state.events.map((e) => e.jurisdictionSlug)).size
   $('stats').textContent =
     `${shown.length} meeting${shown.length === 1 ? '' : 's'} shown · ` +
-    `${total} tracked across ${state.jurisdictions.size} municipalities`
+    `${total} tracked across ${places} municipalities`
 }
 
 /* ---------- filter menus ---------- */
@@ -319,28 +322,69 @@ $('show-past').onchange = (e) => {
 
 /* ---------- boot ---------- */
 
+/**
+ * Fetch with one retry and errors that say something useful.
+ *
+ * A request stopped by a privacy blocker or an offline network surfaces as a bare
+ * `TypeError: Failed to fetch` with no status and no URL, which tells a user nothing.
+ * We catch that case specifically and explain it.
+ */
+async function getJson(path, { retries = 1 } = {}) {
+  let lastError
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 400))
+    try {
+      const res = await fetch(path, { headers: { Accept: 'application/json' } })
+      if (!res.ok) throw new Error(`${path} returned HTTP ${res.status}`)
+      return await res.json()
+    } catch (err) {
+      lastError = err
+      // A TypeError from fetch means the request never completed: blocked, offline,
+      // or DNS. Anything else (a bad status, bad JSON) is worth reporting verbatim.
+      if (!(err instanceof TypeError)) throw err
+    }
+  }
+  const blocked = new Error(`Could not reach ${path}`)
+  blocked.likelyBlocked = true
+  blocked.cause = lastError
+  throw blocked
+}
+
+function showError(err) {
+  const blocked = err.likelyBlocked
+  $('list').innerHTML = `<div class="empty">
+    <p><strong>${blocked ? 'The meeting data could not be loaded.' : 'Something went wrong.'}</strong></p>
+    ${
+      blocked
+        ? `<p>The request was stopped before it reached the server. This is usually a browser
+             extension — an ad or privacy blocker — or an offline connection.</p>
+           <p>Try reloading, or opening the site in a private window with extensions disabled.</p>`
+        : `<p>${esc(err.message)}</p>`
+    }
+    <p><button class="btn" onclick="location.reload()">Reload</button></p>
+    <p style="margin-top:14px"><a href="/health">Check whether the server is up</a></p>
+  </div>`
+}
+
 async function boot() {
   readUrl()
   $('show-packages').checked = state.showPackages
   $('show-past').checked = state.showPast
 
-  const [eventsRes, jurRes] = await Promise.all([
-    // Ask for everything; the client decides what to show.
-    fetch('/api/events?category=meeting,information-package'),
-    fetch('/api/jurisdictions'),
-  ])
-  const { events } = await eventsRes.json()
-  const jurisdictions = await jurRes.json()
+  // Meetings are essential; the place list only improves the labels. Fetch them
+  // independently so a failure of the second does not blank the whole page.
+  const meetings = await getJson('/api/meetings?category=meeting,information-package')
+  const places = await getJson('/api/places').catch(() => [])
 
-  state.events = events
-  for (const j of jurisdictions) state.jurisdictions.set(j.slug, j)
+  state.events = meetings.events
+  for (const p of places) state.jurisdictions.set(p.slug, p)
 
-  $('sources-line').innerHTML =
-    `Sources: ${jurisdictions.map((j) => `<a href="${esc(j.homepage)}" rel="noopener">${esc(j.name)}</a>`).join(' · ')}`
+  if (places.length) {
+    $('sources-line').innerHTML =
+      `Sources: ${places.map((p) => `<a href="${esc(p.homepage)}" rel="noopener">${esc(p.name)}</a>`).join(' · ')}`
+  }
 
   refresh()
 }
 
-boot().catch((err) => {
-  $('list').innerHTML = `<div class="empty"><p>Could not load meetings.</p><p>${esc(err.message)}</p></div>`
-})
+boot().catch(showError)
