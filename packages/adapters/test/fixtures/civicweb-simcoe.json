@@ -1,0 +1,122 @@
+[
+    {
+        "ExternalCalendar": false,
+        "Id": 1126,
+        "MeetingDate": "2026-10-06",
+        "MeetingDateTime": "2026-10-06 09:00",
+        "MeetingLocation": "Council Chamber",
+        "MeetingTime": "09:00 AM",
+        "Name": "Joint Council and Committee of the Whole - 06 Oct 2026",
+        "Published": false,
+        "TypeId": 10,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1152,
+        "MeetingDate": "2026-09-22",
+        "MeetingDateTime": "2026-09-22 09:30",
+        "MeetingLocation": "Council Chamber",
+        "MeetingTime": "09:30 AM",
+        "Name": "Simcoe County Housing Corporation Board - 22 Sep 2026",
+        "Published": false,
+        "TypeId": 19,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1110,
+        "MeetingDate": "2026-09-22",
+        "MeetingDateTime": "2026-09-22 09:00",
+        "MeetingLocation": "Council Chamber",
+        "MeetingTime": "09:00 AM",
+        "Name": "Council - 22 Sep 2026",
+        "Published": false,
+        "TypeId": 10,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1123,
+        "MeetingDate": "2026-09-22",
+        "MeetingDateTime": "2026-09-22 09:30",
+        "MeetingLocation": "Council Chamber",
+        "MeetingTime": "09:30 AM",
+        "Name": "Committee of the Whole - 22 Sep 2026",
+        "Published": false,
+        "TypeId": 16,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1149,
+        "MeetingDate": "2026-09-15",
+        "MeetingDateTime": "2026-09-15 09:00",
+        "MeetingLocation": "Oro-Medonte Severn Boardroom",
+        "MeetingTime": "09:00 AM",
+        "Name": "Bursary Committee - 15 Sep 2026",
+        "Published": true,
+        "TypeId": 58,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1138,
+        "MeetingDate": "2026-09-15",
+        "MeetingDateTime": "2026-09-15 13:00",
+        "MeetingLocation": "Oro-Medonte Severn Boardroom",
+        "MeetingTime": "01:00 PM",
+        "Name": "Audit and Finance Committee - 15 Sep 2026",
+        "Published": false,
+        "TypeId": 26,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1135,
+        "MeetingDate": "2026-09-08",
+        "MeetingDateTime": "2026-09-08 11:00",
+        "MeetingLocation": "Council Chamber",
+        "MeetingTime": "11:00 AM",
+        "Name": "Economic Development Sub-Committee - 08 Sep 2026",
+        "Published": true,
+        "TypeId": 27,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1109,
+        "MeetingDate": "2026-09-08",
+        "MeetingDateTime": "2026-09-08 09:00",
+        "MeetingLocation": "Council Chamber",
+        "MeetingTime": "09:00 AM",
+        "Name": "Council - 08 Sep 2026",
+        "Published": true,
+        "TypeId": 10,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1122,
+        "MeetingDate": "2026-09-08",
+        "MeetingDateTime": "2026-09-08 09:30",
+        "MeetingLocation": "Council Chamber",
+        "MeetingTime": "09:30 AM",
+        "Name": "Committee of the Whole - 08 Sep 2026",
+        "Published": true,
+        "TypeId": 16,
+        "VideoIcon": ""
+    },
+    {
+        "ExternalCalendar": false,
+        "Id": 1145,
+        "MeetingDate": "2026-09-01",
+        "MeetingDateTime": "2026-09-01 10:30",
+        "MeetingLocation": "Oro-Medonte Severn Boardroom",
+        "MeetingTime": "10:30 AM",
+        "Name": "CANCELLED - Accessibility Advisory Committee - 01 Sep 2026",
+        "Published": false,
+        "TypeId": 17,
+        "VideoIcon": ""
+    }
+]

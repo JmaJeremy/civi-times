@@ -1,0 +1,7 @@
+{
+  "name": "@civi-times/ingest",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": { "@civi-times/core": "*", "@civi-times/adapters": "*" }
+}

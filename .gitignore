@@ -1,1 +1,9 @@
 *.pem
+node_modules/
+dist/
+.wrangler/
+.svelte-kit/
+.dev.vars
+*.log
+.DS_Store
+scratch/
