@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Civi-Times — civic meetings in Simcoe County</title>
+<meta name="description" content="Every council and committee meeting across Simcoe County, Ontario, in one place. Filter by municipality and committee, and subscribe in your own calendar.">
+<meta name="theme-color" content="#1c5d4a">
+<meta property="og:title" content="Civi-Times — civic meetings in Simcoe County">
+<meta property="og:description" content="Every council and committee meeting across Simcoe County, in one place.">
+<link rel="manifest" href="/manifest.json">
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <h1>Civi-Times</h1>
+    <p class="tagline">Every council and committee meeting across Simcoe County, in one place.</p>
+    <p class="stats" id="stats">Loading…</p>
+  </header>
+
+  <div class="filters">
+    <div class="filter-row">
+      <div class="field" id="f-jurisdiction"></div>
+      <div class="field" id="f-type"></div>
+      <div class="field" id="f-level"></div>
+      <label class="toggle"><input type="checkbox" id="show-packages"> Information packages</label>
+      <label class="toggle"><input type="checkbox" id="show-past"> Past meetings</label>
+      <span class="spacer"></span>
+      <button class="btn" id="subscribe">Subscribe</button>
+    </div>
+    <div class="active-filters" id="active"></div>
+  </div>
+
+  <main id="list"><div class="loading">Loading meetings…</div></main>
+
+  <footer>
+    <p>Meeting data is collected from each municipality's own public calendar and links back to the source.
+       Always confirm details with the municipality before attending.</p>
+    <p id="sources-line"></p>
+  </footer>
+</div>
+
+<div class="sheet" id="sheet" hidden>
+  <div class="sheet-inner">
+    <h2>Subscribe in your calendar</h2>
+    <p>Add this link to Google Calendar, Apple Calendar or Outlook and these meetings will appear
+       alongside everything else — updating on their own as councils change their schedules.</p>
+    <code id="ics-url"></code>
+    <div class="sheet-actions">
+      <button class="btn" id="copy-ics">Copy link</button>
+      <a class="btn ghost" id="open-ics" href="#">Open .ics</a>
+      <button class="btn ghost" id="close-sheet">Close</button>
+    </div>
+  </div>
+</div>
+
+<script type="module" src="/app.js"></script>
+</body>
+</html>

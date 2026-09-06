@@ -1,0 +1,10 @@
+{
+  "name": "Civi-Times — Simcoe County civic meetings",
+  "short_name": "Civi-Times",
+  "description": "Every council and committee meeting across Simcoe County, in one place.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f7f6f3",
+  "theme_color": "#1c5d4a",
+  "icons": []
+}

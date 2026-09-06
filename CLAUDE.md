@@ -110,3 +110,34 @@ All tests are fixture-based and hit no network. Fixtures in
 [packages/adapters/test/fixtures/](packages/adapters/test/fixtures/) are real captured
 responses. When adapter behaviour changes, re-capture rather than hand-editing — the point
 is that they reflect what these servers actually send.
+
+## Known issues
+
+See [docs/known-issues.md](docs/known-issues.md). The one most likely to trip you up: BWG
+lists Simcoe County Council meetings in its own calendar, so 7 events legitimately appear
+twice. Do **not** dedupe on title + start time — that collapses genuinely distinct meetings
+in different townships, and several joint bodies (Huronia West O.P.P. Board, Midland
+Penetanguishene Transit) are correctly listed once by their host.
+
+## Deployment
+
+Two Workers, both on the shared `civi-times` D1 database:
+
+```bash
+set -a; . ./.env; set +a          # CLOUDFLARE_ACCOUNT_ID / CLOUDFLARE_API_TOKEN
+npx wrangler deploy --config apps/ingest/wrangler.jsonc   # cron: hourly at :17
+npx wrangler deploy --config apps/web/wrangler.jsonc
+
+# Apply a migration
+npx wrangler d1 execute civi-times --remote \
+  --file=apps/ingest/migrations/0001_initial.sql --config apps/ingest/wrangler.jsonc
+
+# Trigger ingestion by hand (token is in .env)
+curl -X POST "https://civi-times-ingest.thejeremy-net.workers.dev/run?token=$INGEST_TOKEN"
+```
+
+- Site: https://civi-times.thejeremy-net.workers.dev
+- Ingest: https://civi-times-ingest.thejeremy-net.workers.dev
+
+`.env` holds the Cloudflare credentials and the ingest token and is gitignored — keep it
+that way; `git add -A` would otherwise commit an API token.
