@@ -167,45 +167,118 @@ function updateStats(shown) {
 
 /* ---------- filter menus ---------- */
 
+/** containerId -> which filter set it drives. */
+const MENUS = { 'f-jurisdiction': 'j', 'f-type': 'type', 'f-level': 'level' }
+
+/**
+ * Build one dropdown.
+ *
+ * Options may carry a `group`, which renders as a labelled section with a rule above it.
+ * That is how County of Simcoe is kept apart from the sixteen municipalities: it is an
+ * upper-tier government, not a municipality, and lumping it into an alphabetical list
+ * misrepresents what it is.
+ */
 function buildMenu(containerId, label, key, options) {
   const container = $(containerId)
   const selected = state.filters[key]
 
+  let lastGroup = null
   const rows = options
-    .map(
-      (opt) => `<label><input type="checkbox" value="${esc(opt.value)}"${selected.has(opt.value) ? ' checked' : ''}>
-        <span>${esc(opt.label)}</span><span class="tally">${opt.count}</span></label>`,
-    )
+    .map((opt) => {
+      const header =
+        opt.group && opt.group !== lastGroup
+          ? `<div class="menu-group" data-group="${esc(opt.group)}">${esc(opt.group)}</div>`
+          : ''
+      lastGroup = opt.group ?? lastGroup
+      const search = (opt.search ?? opt.label).toLowerCase()
+      return `${header}<label data-search="${esc(search)}" data-group="${esc(opt.group ?? '')}">
+        <input type="checkbox" value="${esc(opt.value)}"${selected.has(opt.value) ? ' checked' : ''}>
+        <span class="opt-label">${esc(opt.label)}${
+          opt.note ? `<span class="opt-note">${esc(opt.note)}</span>` : ''
+        }</span><span class="tally">${opt.count}</span></label>`
+    })
     .join('')
 
   container.innerHTML = `
-    <button aria-expanded="false">${esc(label)}${selected.size ? ` <span class="count">${selected.size}</span>` : ''} <span class="chev">▼</span></button>
+    <button aria-expanded="false" aria-haspopup="true">${esc(label)}<span class="count"${
+      selected.size ? '' : ' hidden'
+    }>${selected.size}</span> <span class="chev">\u25be</span></button>
     <div class="menu" hidden>
+      <div class="menu-search">
+        <input type="search" placeholder="Search ${esc(label.toLowerCase())}\u2026" aria-label="Search ${esc(label)}" autocomplete="off">
+      </div>
       <div class="menu-head"><button data-all>Select all</button><button data-none>Clear</button></div>
-      ${rows}
+      <div class="menu-options">${rows}</div>
+      <p class="menu-empty" hidden>No matches</p>
     </div>`
 
   const trigger = container.querySelector('button')
   const menu = container.querySelector('.menu')
+  const search = menu.querySelector('.menu-search input')
 
   trigger.onclick = (ev) => {
     ev.stopPropagation()
-    const open = !menu.hidden
+    const wasOpen = !menu.hidden
     closeAllMenus()
-    menu.hidden = open
-    trigger.setAttribute('aria-expanded', String(!open))
+    if (!wasOpen) {
+      menu.hidden = false
+      trigger.setAttribute('aria-expanded', 'true')
+      // Typing should just work once the menu is open, but not on touch, where
+      // focusing would raise the keyboard over the list the user wants to read.
+      if (!window.matchMedia('(hover: none)').matches) search.focus()
+    }
   }
   menu.onclick = (ev) => ev.stopPropagation()
 
+  const applySearch = () => {
+    const term = search.value.trim().toLowerCase()
+    let visible = 0
+    for (const label of menu.querySelectorAll('label[data-search]')) {
+      const match = !term || label.dataset.search.includes(term)
+      label.hidden = !match
+      if (match) visible++
+    }
+    // Hide a section heading once nothing under it survives the search.
+    for (const header of menu.querySelectorAll('.menu-group')) {
+      const group = header.dataset.group
+      const anyVisible = [...menu.querySelectorAll(`label[data-group="${CSS.escape(group)}"]`)].some(
+        (l) => !l.hidden,
+      )
+      header.hidden = !anyVisible
+    }
+    menu.querySelector('.menu-empty').hidden = visible > 0
+  }
+
+  search.oninput = applySearch
+  search.onkeydown = (ev) => {
+    if (ev.key === 'Escape') {
+      // First Escape clears the search, a second closes the menu.
+      if (search.value) {
+        search.value = ''
+        applySearch()
+      } else {
+        closeAllMenus()
+        trigger.focus()
+      }
+    }
+  }
+
+  // Bulk actions apply to what the user can currently see, which is what they mean
+  // when they have typed a search term.
+  const visibleValues = () =>
+    [...menu.querySelectorAll('label[data-search]')]
+      .filter((l) => !l.hidden)
+      .map((l) => l.querySelector('input').value)
+
   menu.querySelector('[data-all]').onclick = () => {
-    options.forEach((o) => selected.add(o.value))
+    visibleValues().forEach((v) => selected.add(v))
     refresh()
   }
   menu.querySelector('[data-none]').onclick = () => {
-    selected.clear()
+    visibleValues().forEach((v) => selected.delete(v))
     refresh()
   }
-  menu.querySelectorAll('input').forEach((input) => {
+  menu.querySelectorAll('input[type=checkbox]').forEach((input) => {
     input.onchange = () => {
       if (input.checked) selected.add(input.value)
       else selected.delete(input.value)
@@ -214,24 +287,50 @@ function buildMenu(containerId, label, key, options) {
   })
 }
 
+/**
+ * Reflect filter state back into the menus without rebuilding them.
+ *
+ * The option lists depend only on the past/packages toggles, never on which
+ * municipalities or committees are selected, so a checkbox click has no reason to
+ * re-render. Leaving the DOM alone keeps the menu open, the search text intact and the
+ * caret where the user left it while they tick several boxes.
+ */
+function syncMenus() {
+  for (const [containerId, key] of Object.entries(MENUS)) {
+    const container = $(containerId)
+    if (!container.firstChild) continue
+    const selected = state.filters[key]
+
+    for (const input of container.querySelectorAll('input[type=checkbox]')) {
+      input.checked = selected.has(input.value)
+    }
+    const badge = container.querySelector('.count')
+    badge.textContent = String(selected.size)
+    badge.hidden = selected.size === 0
+  }
+}
+
 function closeAllMenus() {
   document.querySelectorAll('.menu').forEach((m) => (m.hidden = true))
   document.querySelectorAll('.field > button').forEach((b) => b.setAttribute('aria-expanded', 'false'))
 }
 document.addEventListener('click', closeAllMenus)
+document.addEventListener('keydown', (ev) => {
+  if (ev.key === 'Escape') closeAllMenus()
+})
 
 function renderActiveFilters() {
   const pills = []
   const add = (key, value, label) =>
-    pills.push(`<span class="pill">${esc(label)}<button data-key="${key}" data-value="${esc(value)}" aria-label="Remove">×</button></span>`)
+    pills.push(`<span class="pill">${esc(label)}<button data-key="${key}" data-value="${esc(value)}" aria-label="Remove ${esc(label)} filter">\u00d7</button></span>`)
 
-  for (const slug of state.filters.j) add('j', slug, state.jurisdictions.get(slug)?.name || slug)
+  for (const slug of state.filters.j) add('j', slug, placeName(slug))
   for (const type of state.filters.type) add('type', type, type)
   for (const level of state.filters.level) add('level', level, level === 'county' ? 'County' : 'Municipal')
 
   const box = $('active')
   box.innerHTML = pills.length
-    ? pills.join('') + `<button class="pill" onclick="window.__clearAll()" style="cursor:pointer">Clear all</button>`
+    ? pills.join('') + `<button class="pill clear-all" type="button">Clear all</button>`
     : ''
   box.querySelectorAll('button[data-key]').forEach((b) => {
     b.onclick = () => {
@@ -239,6 +338,8 @@ function renderActiveFilters() {
       refresh()
     }
   })
+  const clearAll = box.querySelector('.clear-all')
+  if (clearAll) clearAll.onclick = () => window.__clearAll()
 }
 
 window.__clearAll = () => {
@@ -249,6 +350,8 @@ window.__clearAll = () => {
 }
 
 /* ---------- options derived from the data ---------- */
+
+const placeName = (slug) => state.jurisdictions.get(slug)?.name || slug
 
 function optionsFor(getter) {
   const counts = new Map()
@@ -263,16 +366,45 @@ function optionsFor(getter) {
     .map(([value, count]) => ({ value, count }))
 }
 
+/**
+ * Split "Township of Tay" into the name people actually use and its municipal type.
+ *
+ * Sorting on the full legal name is misleading: every "Township of ..." lands under T
+ * and "City of Barrie" files under C, so the list looks alphabetical while being
+ * impossible to scan. Nobody looks for "the Township of Tay" — they look for Tay.
+ */
+function splitPlaceName(full) {
+  const m = /^(City|Town|Township|County|Municipality)\s+of\s+(.+)$/i.exec(full)
+  return m ? { name: m[2], type: m[1] } : { name: full, type: '' }
+}
+
+function jurisdictionOptions() {
+  // Level comes off the events themselves, so grouping still works even if the
+  // separate places lookup failed and we are falling back to slugs for labels.
+  const levels = new Map(state.events.map((e) => [e.jurisdictionSlug, e.level]))
+
+  return optionsFor((e) => e.jurisdictionSlug)
+    .map((o) => {
+      const { name, type } = splitPlaceName(placeName(o.value))
+      return {
+        ...o,
+        label: name,
+        note: type,
+        // Search should still find "township of tay" or the slug, not just "tay".
+        search: `${name} ${type} ${placeName(o.value)} ${o.value}`.toLowerCase(),
+        group: levels.get(o.value) === 'county' ? 'County' : 'Municipalities',
+      }
+    })
+    .sort((a, b) => {
+      // The county sits above the rule; municipalities below it, by the name people
+      // would look for rather than by legal prefix.
+      if (a.group !== b.group) return a.group === 'County' ? -1 : 1
+      return a.label.localeCompare(b.label)
+    })
+}
+
 function rebuildMenus() {
-  buildMenu(
-    'f-jurisdiction',
-    'Municipality',
-    'j',
-    optionsFor((e) => e.jurisdictionSlug).map((o) => ({
-      ...o,
-      label: state.jurisdictions.get(o.value)?.name || o.value,
-    })),
-  )
+  buildMenu('f-jurisdiction', 'County / Municipality', 'j', jurisdictionOptions())
   buildMenu('f-type', 'Committee', 'type', optionsFor((e) => e.meetingType).map((o) => ({ ...o, label: o.value })))
   buildMenu(
     'f-level',
@@ -284,9 +416,15 @@ function rebuildMenus() {
 
 function refresh() {
   writeUrl()
-  rebuildMenus()
+  syncMenus()
   renderActiveFilters()
   renderList()
+}
+
+/** The option lists themselves only change when the past/packages toggles do. */
+function refreshAll() {
+  rebuildMenus()
+  refresh()
 }
 
 /* ---------- subscribe sheet ---------- */
@@ -313,11 +451,11 @@ $('copy-ics').onclick = async () => {
 
 $('show-packages').onchange = (e) => {
   state.showPackages = e.target.checked
-  refresh()
+  refreshAll()
 }
 $('show-past').onchange = (e) => {
   state.showPast = e.target.checked
-  refresh()
+  refreshAll()
 }
 
 /* ---------- boot ---------- */
@@ -384,7 +522,7 @@ async function boot() {
       `Sources: ${places.map((p) => `<a href="${esc(p.homepage)}" rel="noopener">${esc(p.name)}</a>`).join(' · ')}`
   }
 
-  refresh()
+  refreshAll()
 }
 
 boot().catch(showError)

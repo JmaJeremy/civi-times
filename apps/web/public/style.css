@@ -89,24 +89,56 @@ a { color: inherit; }
 .field .count {
   background: var(--accent); color: var(--accent-ink);
   border-radius: 999px; padding: 0 7px; font-size: 12px; font-weight: 600;
+  min-width: 18px; text-align: center;
 }
+.field .count[hidden] { display: none; }
 .chev { color: var(--ink-3); font-size: 11px; }
 
 .menu {
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 30;
-  min-width: 260px; max-height: 340px; overflow-y: auto;
+  min-width: 282px; max-width: min(360px, calc(100vw - 32px));
   background: var(--surface); border: 1px solid var(--line);
   border-radius: var(--radius); box-shadow: var(--shadow); padding: 6px;
+  /* The search box and bulk actions stay put while only the list scrolls. */
+  display: flex; flex-direction: column; max-height: min(420px, 70vh);
 }
+
+.menu-search { padding: 2px 2px 6px; flex: none; }
+.menu-search input {
+  width: 100%; box-sizing: border-box;
+  background: var(--surface-2); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 7px;
+  padding: 8px 10px; font: inherit; font-size: 14px;
+}
+.menu-search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; border-color: transparent; }
+.menu-search input::placeholder { color: var(--ink-3); }
+/* Safari draws its own clear button that clashes with the field styling. */
+.menu-search input::-webkit-search-cancel-button { appearance: none; }
+
+.menu-options { overflow-y: auto; flex: 1 1 auto; }
+
+.menu-group {
+  padding: 9px 9px 5px; margin-top: 4px;
+  border-top: 1px solid var(--line);
+  color: var(--ink-3); font-size: 11.5px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+/* No rule above the first section — it would sit directly under the toolbar. */
+.menu-options > .menu-group:first-child { border-top: none; margin-top: 0; padding-top: 4px; }
+
+.menu-empty { margin: 0; padding: 16px 9px; text-align: center; color: var(--ink-3); font-size: 13.5px; }
 .menu label {
   display: flex; align-items: center; gap: 9px;
   padding: 7px 9px; border-radius: 7px; cursor: pointer; font-size: 14px;
 }
 .menu label:hover { background: var(--surface-2); }
 .menu label input { accent-color: var(--accent); flex: none; }
-.menu .tally { margin-left: auto; color: var(--ink-3); font-size: 12px; }
+.menu .tally { margin-left: auto; color: var(--ink-3); font-size: 12px; padding-left: 8px; }
+.menu .opt-label { display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+.menu .opt-note { color: var(--ink-3); font-size: 11.5px; }
 .menu .menu-head {
-  display: flex; gap: 8px; padding: 6px 9px 8px; border-bottom: 1px solid var(--line); margin-bottom: 4px;
+  display: flex; gap: 12px; padding: 2px 9px 8px;
+  border-bottom: 1px solid var(--line); margin-bottom: 4px; flex: none;
 }
 .menu .menu-head button {
   background: none; border: none; color: var(--accent);
@@ -137,6 +169,8 @@ a { color: inherit; }
 }
 .pill button { background: none; border: none; color: var(--ink-3); cursor: pointer; font-size: 15px; line-height: 1; padding: 0 2px; }
 .pill button:hover { color: var(--stop); }
+.pill.clear-all { cursor: pointer; padding: 4px 11px; font: inherit; font-size: 13px; color: var(--ink-2); }
+.pill.clear-all:hover { border-color: var(--ink-3); color: var(--ink); }
 
 /* ---- day groups ---- */
 .day { margin-bottom: 26px; }
@@ -221,6 +255,8 @@ footer a { color: var(--ink-2); }
 .event-page .subscribe { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; }
 
 @media (max-width: 620px) {
+  .menu { position: fixed; left: 12px; right: 12px; top: auto; min-width: 0; max-width: none; }
+
   .event { grid-template-columns: 68px 1fr; gap: 12px; padding: 12px 13px; }
   .event .time { font-size: 14px; }
   .filters { padding: 10px 0; }
