@@ -263,9 +263,46 @@ a { color: inherit; }
   background: none; border: none; padding: 0; font: inherit;
   color: var(--accent); text-decoration: underline; cursor: pointer;
 }
-.day-detail { margin-top: 20px; }
-.day-detail[hidden] { display: none; }
-.day-detail .day-head { justify-content: space-between; }
+
+/* ---- day modal ----
+   A <dialog> is display:none until [open], so the display rule is scoped to [open].
+   Setting display on the bare class would defeat the closed state entirely. */
+.modal {
+  padding: 0; border: none; background: none;
+  max-width: none; max-height: none; width: 100%; height: 100%;
+  overflow: hidden;
+}
+.modal[open] { display: flex; align-items: center; justify-content: center; }
+.modal::backdrop { background: rgba(10, 9, 8, .55); backdrop-filter: blur(2px); }
+
+.modal-inner {
+  background: var(--surface); color: var(--ink);
+  border: 1px solid var(--line); border-radius: 14px; box-shadow: var(--shadow);
+  width: min(560px, calc(100vw - 32px)); max-height: min(76vh, 720px);
+  display: flex; flex-direction: column; overflow: hidden;
+}
+.modal-head {
+  display: flex; align-items: center; gap: 12px;
+  padding: 18px 20px 14px; border-bottom: 1px solid var(--line); flex: none;
+}
+.modal-head h2 {
+  margin: 0; flex: 1 1 auto;
+  font: 700 19px/1.25 ui-serif, Georgia, "Times New Roman", serif;
+}
+.modal-close {
+  background: none; border: none; color: var(--ink-3); cursor: pointer;
+  font-size: 26px; line-height: 1; padding: 0 4px; flex: none; border-radius: 6px;
+}
+.modal-close:hover { color: var(--ink); }
+.modal-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.modal-body { padding: 16px 20px 20px; overflow-y: auto; flex: 1 1 auto; }
+.modal-body .event { box-shadow: none; }
+.modal-body .event:last-child { margin-bottom: 0; }
+.modal-body .cal-empty { padding: 12px 0; }
+
+/* The page behind a modal must not scroll under it. */
+body.modal-open { overflow: hidden; }
 
 /* ---- day groups ---- */
 .day { margin-bottom: 26px; }
@@ -362,6 +399,11 @@ footer a { color: var(--ink-2); }
 
 @media (max-width: 620px) {
   .menu { position: fixed; left: 12px; right: 12px; top: auto; min-width: 0; max-width: none; }
+  .modal[open] { align-items: flex-end; }
+  .modal-inner {
+    width: 100%; max-height: 82vh;
+    border-radius: 16px 16px 0 0; border-bottom: none;
+  }
 
   .event { grid-template-columns: 68px 1fr; gap: 12px; padding: 12px 13px; }
   .event .time { font-size: 14px; }

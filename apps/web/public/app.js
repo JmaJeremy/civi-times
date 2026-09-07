@@ -13,6 +13,8 @@ const state = {
   showPackages: false,
   showPast: false,
   view: 'list',
+  /** Visible events grouped by date, rebuilt whenever the calendar renders. */
+  byDay: new Map(),
   /** Month shown by the calendar, 'YYYY-MM'. */
   month: '',
   /** Day whose meetings are listed under the grid, 'YYYY-MM-DD' or null. */
@@ -237,6 +239,8 @@ function renderCalendar() {
     if (!byDay.has(e.localDate)) byDay.set(e.localDate, [])
     byDay.get(e.localDate).push(e)
   }
+  // Kept so opening a day needs no re-render — see selectDay.
+  state.byDay = byDay
 
   const [year, m] = state.month.split('-').map(Number)
   $('month-label').textContent = fmtMonth.format(new Date(Date.UTC(year, m - 1, 1)))
@@ -308,8 +312,7 @@ function renderCalendar() {
 
   $('calendar').innerHTML = `
     <div class="cal-grid" role="grid">${head}${body}</div>
-    ${empty}
-    <div id="day-detail" class="day-detail"></div>`
+    ${empty}`
 
   for (const button of $('calendar').querySelectorAll('.cal-day')) {
     button.onclick = () => selectDay(button.dataset.day)
@@ -323,7 +326,9 @@ function renderCalendar() {
     }
   }
 
-  renderDayDetail(byDay)
+  // Keep an open modal in step with the grid behind it, so changing a filter while a
+  // day is open does not leave it showing meetings that no longer match.
+  if (dayModal.open) renderDayModal(byDay)
   updateStats(events)
 }
 
@@ -338,35 +343,68 @@ function nextMonthWithEvents() {
 }
 
 function selectDay(iso) {
-  state.selectedDay = state.selectedDay === iso ? null : iso
-  renderCalendar()
+  state.selectedDay = iso
+
+  /*
+   * Update the highlight in place rather than re-rendering the grid. Chrome restores
+   * focus to whatever opened the dialog, and rebuilding the grid would destroy that
+   * button mid-click, leaving a keyboard user stranded on <body> when the modal closes.
+   */
+  for (const cell of document.querySelectorAll('.cal-day')) {
+    cell.classList.toggle('is-selected', cell.dataset.day === iso)
+  }
+
+  renderDayModal(state.byDay)
+  openDayModal()
 }
 
-function renderDayDetail(byDay) {
-  const panel = $('day-detail')
-  if (!panel) return
+/* ---------- day modal ---------- */
 
-  if (!state.selectedDay) {
-    panel.innerHTML = ''
-    panel.hidden = true
-    return
+const dayModal = $('day-modal')
+
+/**
+ * A native <dialog> rather than a hand-rolled overlay: it traps focus, closes on Escape,
+ * makes the page behind it inert, and restores focus to the day that opened it — all
+ * behaviour that is easy to get subtly wrong by hand.
+ */
+function openDayModal() {
+  if (!dayModal.open) dayModal.showModal()
+  document.body.classList.add('modal-open')
+}
+
+function closeDayModal() {
+  if (dayModal.open) dayModal.close()
+}
+
+// Fires for the close button, Escape, and dialog.close() alike, so all the cleanup
+// lives in one place.
+dayModal.addEventListener('close', () => {
+  document.body.classList.remove('modal-open')
+  state.selectedDay = null
+  // Deliberately not a re-render: the browser returns focus to the element that opened
+  // the dialog, and rebuilding the grid would destroy that button and strand focus on
+  // <body>. Clearing the highlight by hand is all the grid actually needs.
+  for (const cell of document.querySelectorAll('.cal-day.is-selected')) {
+    cell.classList.remove('is-selected')
   }
+})
+
+$('close-day').onclick = () => closeDayModal()
+
+// A <dialog> does not dismiss on a backdrop click by itself. Clicks that land on the
+// dialog element rather than its content box are backdrop clicks.
+dayModal.addEventListener('click', (ev) => {
+  if (ev.target === dayModal) closeDayModal()
+})
+
+function renderDayModal(byDay) {
+  if (!state.selectedDay) return
   const dayEvents = byDay.get(state.selectedDay) ?? []
-  panel.hidden = false
-  panel.innerHTML = `
-    <div class="day-head">
-      <h2>${esc(fmtDay.format(new Date(`${state.selectedDay}T00:00:00Z`)))}</h2>
-      <button type="button" class="linkish" id="close-day">Close</button>
-    </div>
-    ${
-      dayEvents.length
-        ? dayEvents.map(renderEvent).join('')
-        : '<p class="cal-empty">No meetings on this day.</p>'
-    }`
-  $('close-day').onclick = () => {
-    state.selectedDay = null
-    renderCalendar()
-  }
+
+  $('day-modal-title').textContent = fmtDay.format(new Date(`${state.selectedDay}T00:00:00Z`))
+  $('day-modal-body').innerHTML = dayEvents.length
+    ? dayEvents.map(renderEvent).join('')
+    : '<p class="cal-empty">No meetings on this day.</p>'
 }
 
 /* ---------- view switching ---------- */
@@ -705,6 +743,7 @@ $('this-month').onclick = () => goToMonth(thisMonth())
 document.addEventListener('keydown', (ev) => {
   // Arrow keys page the calendar, but not while someone is typing in a search box.
   if (state.view !== 'calendar') return
+  if (dayModal.open) return
   if (ev.target instanceof HTMLInputElement) return
   if (ev.key === 'ArrowLeft') goToMonth(shiftMonth(state.month, -1))
   if (ev.key === 'ArrowRight') goToMonth(shiftMonth(state.month, 1))

@@ -145,7 +145,19 @@ hidden. Menu tallies follow the same scope so the numbers match what the view ca
 
 Calendar chips carry the municipality only when more than one is in view, because a cell
 has very little width and "Council" alone is ambiguous across nineteen places. Below 760px
-chips become dots and tapping a day lists it underneath the grid.
+chips become dots. Clicking a day opens its meetings in a native `<dialog>` (a bottom
+sheet on narrow screens), which supplies focus trapping, Escape, an inert background and
+focus restoration without hand-rolling any of it.
+
+Two things about that dialog are load-bearing and easy to undo by accident:
+
+- **Its `display` is scoped to `.modal[open]`.** A `<dialog>` is `display: none` until
+  opened, so a rule on the bare class would leave it permanently visible — the same
+  cascade trap as `[hidden]` above.
+- **Selecting or deselecting a day must not re-render the grid.** The browser restores
+  focus to the element that opened the dialog, so rebuilding the grid mid-click destroys
+  that button and strands focus on `<body>`. `selectDay` toggles the highlight class in
+  place and reads `state.byDay`, which `renderCalendar` caches for exactly this reason.
 
 ## Deployment
 

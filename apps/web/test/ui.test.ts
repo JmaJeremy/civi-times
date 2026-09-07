@@ -310,14 +310,88 @@ describeIfChrome('calendar view (real browser)', () => {
     expect(await page.$eval('#month-label', (el) => el.textContent!.trim())).toBe(next)
   })
 
-  it('shows a day\'s meetings when the day is clicked, and closes again', async () => {
-    await openCalendar()
-    await page.click(`.cal-day[data-day="${firstEventDate}"]`)
-    expect(await visible('#day-detail')).toBe(true)
-    expect(await page.$$eval('#day-detail .event', (els) => els.length)).toBeGreaterThan(0)
+  describe('day modal', () => {
+    const isOpen = () => page.$eval('#day-modal', (el) => (el as HTMLDialogElement).open)
 
-    await page.click('#close-day')
-    expect(await visible('#day-detail')).toBe(false)
+    it('opens as a modal dialog listing that day\'s meetings', async () => {
+      await openCalendar()
+      expect(await isOpen()).toBe(false)
+
+      await page.click(`.cal-day[data-day="${firstEventDate}"]`)
+      expect(await isOpen()).toBe(true)
+      expect(await visible('#day-modal')).toBe(true)
+      expect(await page.$$eval('#day-modal .event', (els) => els.length)).toBeGreaterThan(0)
+      expect(await page.$eval('#day-modal-title', (el) => el.textContent!.trim())).not.toBe('')
+    })
+
+    it('closes on the close button', async () => {
+      await openCalendar()
+      await page.click(`.cal-day[data-day="${firstEventDate}"]`)
+      await page.click('#close-day')
+      expect(await isOpen()).toBe(false)
+    })
+
+    it('closes on Escape', async () => {
+      await openCalendar()
+      await page.click(`.cal-day[data-day="${firstEventDate}"]`)
+      await page.keyboard.press('Escape')
+      expect(await isOpen()).toBe(false)
+    })
+
+    it('closes when the backdrop is clicked', async () => {
+      await openCalendar()
+      await page.click(`.cal-day[data-day="${firstEventDate}"]`)
+      // Top-left of the viewport is backdrop, well clear of the centred dialog.
+      await page.mouse.click(8, 8)
+      expect(await isOpen()).toBe(false)
+    })
+
+    it('locks the page behind it from scrolling', async () => {
+      await openCalendar()
+      await page.click(`.cal-day[data-day="${firstEventDate}"]`)
+      expect(await page.$eval('body', (el) => getComputedStyle(el).overflow)).toBe('hidden')
+
+      await page.keyboard.press('Escape')
+      // The dialog's close event is queued, so wait for the cleanup rather than race it.
+      await page.waitForFunction(() => !document.body.classList.contains('modal-open'))
+      expect(await page.$eval('body', (el) => getComputedStyle(el).overflow)).not.toBe('hidden')
+    })
+
+    it('moves focus into the dialog and restores it on close', async () => {
+      await openCalendar()
+      const day = `.cal-day[data-day="${firstEventDate}"]`
+      await page.click(day)
+      // Focus must be inside the dialog, or keyboard users are left behind the modal.
+      expect(await page.evaluate(() => document.querySelector('#day-modal')!.contains(document.activeElement))).toBe(true)
+
+      await page.keyboard.press('Escape')
+      await page.waitForFunction(() => !(document.querySelector('#day-modal') as HTMLDialogElement).open)
+      expect(await page.evaluate((sel) => document.activeElement === document.querySelector(sel), day)).toBe(true)
+    })
+
+    it('does not page the month while it is open', async () => {
+      await openCalendar()
+      const label = () => page.$eval('#month-label', (el) => el.textContent!.trim())
+      const before = await label()
+      await page.click(`.cal-day[data-day="${firstEventDate}"]`)
+      await page.keyboard.press('ArrowRight')
+      expect(await label()).toBe(before)
+      await page.keyboard.press('Escape')
+    })
+
+    it('does not open for a day with no meetings', async () => {
+      await openCalendar()
+      const emptyDay = await page.$$eval('.cal-day', (cells) => {
+        const cell = cells.find((c) => !c.querySelector('.chip'))
+        return (cell as HTMLElement | undefined)?.dataset.day ?? null
+      })
+      expect(emptyDay).toBeTruthy()
+      await page.click(`.cal-day[data-day="${emptyDay}"]`)
+      // An empty day still opens, but says so rather than showing a blank panel.
+      expect(await isOpen()).toBe(true)
+      expect(await page.$eval('#day-modal-body', (el) => el.textContent!.trim())).toMatch(/no meetings/i)
+      await page.keyboard.press('Escape')
+    })
   })
 
   it('applies the filters to the grid', async () => {
