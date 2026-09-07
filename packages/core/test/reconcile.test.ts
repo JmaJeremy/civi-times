@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { contentHash } from '../src/identity.ts'
 import { reconcile, type StoredEvent } from '../src/reconcile.ts'
 import type { CanonicalEvent } from '../src/types.ts'
 
@@ -139,5 +140,21 @@ describe('reconcile', () => {
       const plan = reconcile([], [])
       expect(plan.ok).toBe(true)
     })
+  })
+})
+
+describe('content hashing', () => {
+  it('treats a newly published start time as a change', () => {
+    // A municipality filling in a time that was blank must reach anyone subscribed,
+    // so time precision has to participate in the content hash.
+    const base = {
+      externalId: '1',
+      title: 'Council',
+      localStart: '2026-09-16T00:00',
+      raw: {},
+    }
+    const withoutTime = contentHash({ ...base, timePrecision: 'date-only' })
+    const withTime = contentHash({ ...base, localStart: '2026-09-16T09:30', timePrecision: 'exact' })
+    expect(withoutTime).not.toBe(withTime)
   })
 })

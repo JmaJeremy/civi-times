@@ -21,10 +21,16 @@ export const PLACES = [
 
 const future = (days: number): string => {
   const d = new Date()
-  d.setDate(d.getDate() + days)
+  d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
 }
 
+/**
+ * Each place gets two meetings on consecutive days starting tomorrow, so the list view
+ * always has upcoming events to show. Which month those land in depends on today's date,
+ * so calendar tests derive the month from EVENTS rather than assuming the current one —
+ * otherwise they would break for a few days at the end of every month.
+ */
 export const EVENTS = PLACES.flatMap((place, i) =>
   ['Council', 'Committee of the Whole'].map((type, k) => ({
     id: `${place.slug}:${k}`,
@@ -36,9 +42,9 @@ export const EVENTS = PLACES.flatMap((place, i) =>
     bodyName: type,
     meetingType: type,
     category: 'meeting',
-    startsAtUtc: `${future(i + k + 1)}T13:00:00.000Z`,
+    startsAtUtc: `${future(i * 2 + k + 1)}T13:00:00.000Z`,
     endsAtUtc: null,
-    localDate: future(i + k + 1),
+    localDate: future(i * 2 + k + 1),
     localTime: '09:00',
     timezone: 'America/Toronto',
     timePrecision: 'exact',
@@ -52,6 +58,9 @@ export const EVENTS = PLACES.flatMap((place, i) =>
     contentHash: 'x',
   })),
 )
+
+/** Months the stub actually placed meetings in, earliest first. */
+export const EVENT_MONTHS = [...new Set(EVENTS.map((e) => e.localDate.slice(0, 7)))].sort()
 
 /** Serves the real public/ directory with the API stubbed, so the UI runs unmodified. */
 export async function startServer(): Promise<{ url: string; close(): Promise<void> }> {

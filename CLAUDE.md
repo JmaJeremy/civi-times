@@ -91,6 +91,12 @@ The old script was built on two premises that are both false today:
 - **eSCRIBE's `StartDate` seconds are meaningless** — an incrementing counter, not a time.
   Normalization truncates to the minute.
 
+- **An empty `MeetingTime` means no time was published, not midnight.** Five CivicWeb
+  municipalities do this; `MeetingDateTime` then reads `"2026-09-16 00:00"`. Taking that
+  literally showed "12:00 a.m." on the site and exported a midnight appointment to iCal
+  subscribers. The adapter sets `timePrecision: 'date-only'` when `MeetingTime` is blank,
+  and `timePrecision` participates in `contentHash` so a later-published time propagates.
+
 - **`Council Information Package` entries are not meetings.** 79 of them across six
   jurisdictions. They are tagged `category: 'information-package'` rather than dropped, so
   the UI can hide them by default.
@@ -128,6 +134,18 @@ lists Simcoe County Council meetings in its own calendar, so 7 events legitimate
 twice. Do **not** dedupe on title + start time — that collapses genuinely distinct meetings
 in different townships, and several joint bodies (Huronia West O.P.P. Board, Midland
 Penetanguishene Transit) are correctly listed once by their host.
+
+## Views
+
+The site has a list view and a month calendar (`?view=calendar&m=YYYY-MM`). They differ in
+exactly one respect, `inDateScope()` in `app.js`: the list looks forward from today unless
+"past meetings" is ticked, while the calendar is scoped by the month on screen — someone
+who paged back to August wants August, so the past rule is suppressed and its toggle
+hidden. Menu tallies follow the same scope so the numbers match what the view can show.
+
+Calendar chips carry the municipality only when more than one is in view, because a cell
+has very little width and "Council" alone is ambiguous across nineteen places. Below 760px
+chips become dots and tapping a day lists it underneath the grid.
 
 ## Deployment
 

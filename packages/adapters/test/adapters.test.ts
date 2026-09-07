@@ -48,6 +48,40 @@ describe('civicweb adapter', () => {
     for (const event of events) expect(event.externalId).toMatch(/^\d+$/)
   })
 
+  it('treats a missing MeetingTime as a date without a time, not as midnight', () => {
+    // Several municipalities publish a date with no time; MeetingDateTime then reads
+    // "... 00:00", which must not be shown or exported as a midnight start.
+    const [event] = mapCivicWebMeetings('example.civicweb.net', [
+      {
+        Id: 765,
+        Name: 'Committee of the Whole Meeting',
+        MeetingDate: '2026-09-16',
+        MeetingDateTime: '2026-09-16 00:00',
+        MeetingTime: '',
+        MeetingLocation: 'Council Chambers',
+        TypeId: 10,
+        Published: false,
+      },
+    ] as any)
+    expect(event!.timePrecision).toBe('date-only')
+  })
+
+  it('keeps a published time exact', () => {
+    const [event] = mapCivicWebMeetings('example.civicweb.net', [
+      {
+        Id: 766,
+        Name: 'Council',
+        MeetingDate: '2026-09-16',
+        MeetingDateTime: '2026-09-16 09:30',
+        MeetingTime: '09:30 AM',
+        MeetingLocation: 'Council Chambers',
+        TypeId: 10,
+        Published: true,
+      },
+    ] as any)
+    expect(event!.timePrecision).toBe('exact')
+  })
+
   it('reads Diligent Community responses with the same code path', () => {
     // Penetanguishene has already migrated; it returns a superset schema with the type
     // name inline, so no taxonomy lookup is needed.

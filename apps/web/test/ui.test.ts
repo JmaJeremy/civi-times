@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest'
 import puppeteer, { type Browser, type Page } from 'puppeteer-core'
-import { startServer } from './server.ts'
+import { EVENTS, EVENT_MONTHS, startServer } from './server.ts'
 
 /**
  * Real-browser tests for the filter menus.
@@ -206,5 +206,147 @@ describeIfChrome('filter menus (real browser)', () => {
     ])
     expect(shown).toEqual(['Township of Tay'])
     expect(page.url()).toContain('j=tay')
+  })
+})
+
+describeIfChrome('calendar view (real browser)', () => {
+  let browser: Browser
+  let page: Page
+  let server: Awaited<ReturnType<typeof startServer>>
+
+  // Derived, not assumed: which month the stub's meetings fall in depends on today.
+  const MONTH = EVENT_MONTHS[0]!
+  const firstEventDate = EVENTS.map((e) => e.localDate).sort()[0]!
+
+  beforeAll(async () => {
+    server = await startServer()
+    browser = await puppeteer.launch({
+      executablePath: CHROME!,
+      headless: true,
+      args: ['--no-sandbox'],
+    })
+    page = await browser.newPage()
+    await page.setViewport({ width: 1200, height: 900 })
+  }, 60_000)
+
+  afterAll(async () => {
+    await browser?.close()
+    await server?.close()
+  })
+
+  const openCalendar = async (query = '') => {
+    await page.goto(`${server.url}/?view=calendar&m=${MONTH}${query}`, { waitUntil: 'networkidle0' })
+    await page.waitForSelector('.cal-grid')
+  }
+
+  const visible = (selector: string) => page.$eval(selector, (el) => el.checkVisibility())
+
+  it('shows the grid and hides the list when the calendar is selected', async () => {
+    await openCalendar()
+    expect(await visible('#calendar')).toBe(true)
+    expect(await visible('#list')).toBe(false)
+    expect(await visible('#monthnav')).toBe(true)
+  })
+
+  it('lays out whole weeks', async () => {
+    await openCalendar()
+    expect(await page.$$eval('.cal-weekday', (els) => els.map((e) => e.textContent!.trim()))).toEqual([
+      'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat',
+    ])
+    const days = await page.$$eval('.cal-day', (els) => els.length)
+    expect(days % 7).toBe(0)
+  })
+
+  it('places each meeting on its own date', async () => {
+    await openCalendar()
+    const chips = await page.$$eval('.cal-day', (cells) =>
+      cells
+        .map((c) => ({
+          day: (c as HTMLElement).dataset.day!,
+          titles: [...c.querySelectorAll('.chip-title')].map((t) => t.textContent!.trim()),
+        }))
+        .filter((c) => c.titles.length),
+    )
+    const forFirstDay = chips.find((c) => c.day === firstEventDate)
+    expect(forFirstDay, `expected a chip on ${firstEventDate}`).toBeDefined()
+    // Every stub meeting in this month should be on the grid exactly once.
+    const inMonth = EVENTS.filter((e) => e.localDate.startsWith(MONTH))
+    expect(chips.reduce((n, c) => n + c.titles.length, 0)).toBe(inMonth.length)
+  })
+
+  it('marks today', async () => {
+    await page.goto(`${server.url}/?view=calendar`, { waitUntil: 'networkidle0' })
+    await page.waitForSelector('.cal-grid')
+    const today = new Date().toISOString().slice(0, 10)
+    expect(await page.$$eval('.cal-day.is-today', (els) => els.map((e) => (e as HTMLElement).dataset.day))).toEqual([today])
+  })
+
+  it('pages between months and back to today', async () => {
+    await openCalendar()
+    const label = () => page.$eval('#month-label', (el) => el.textContent!.trim())
+    const start = await label()
+
+    await page.click('#next-month')
+    expect(await label()).not.toBe(start)
+    await page.click('#prev-month')
+    expect(await label()).toBe(start)
+
+    await page.click('#next-month')
+    await page.click('#this-month')
+    const now = new Date()
+    expect(await label()).toContain(String(now.getUTCFullYear()))
+  })
+
+  it('keeps the month in the URL so a view can be shared', async () => {
+    await openCalendar()
+    await page.click('#next-month')
+    const next = await page.$eval('#month-label', (el) => el.textContent!.trim())
+    expect(page.url()).toMatch(/[?&]m=\d{4}-\d{2}/)
+    expect(page.url()).toContain('view=calendar')
+
+    // Reopening that URL lands on the same month.
+    await page.goto(page.url(), { waitUntil: 'networkidle0' })
+    await page.waitForSelector('.cal-grid')
+    expect(await page.$eval('#month-label', (el) => el.textContent!.trim())).toBe(next)
+  })
+
+  it('shows a day\'s meetings when the day is clicked, and closes again', async () => {
+    await openCalendar()
+    await page.click(`.cal-day[data-day="${firstEventDate}"]`)
+    expect(await visible('#day-detail')).toBe(true)
+    expect(await page.$$eval('#day-detail .event', (els) => els.length)).toBeGreaterThan(0)
+
+    await page.click('#close-day')
+    expect(await visible('#day-detail')).toBe(false)
+  })
+
+  it('applies the filters to the grid', async () => {
+    await openCalendar('&j=tay')
+    const titles = await page.$$eval('.cal-day .chip-title', (els) => els.map((e) => e.textContent!.trim()))
+    const tayCount = EVENTS.filter((e) => e.jurisdictionSlug === 'tay' && e.localDate.startsWith(MONTH)).length
+    expect(titles).toHaveLength(tayCount)
+    expect(await page.$eval('#month-count', (el) => el.textContent!.trim())).toContain(String(tayCount))
+  })
+
+  it('says when a month has no meetings and offers the next one that does', async () => {
+    // Two years back is guaranteed empty for the stub's data.
+    const empty = `${Number(MONTH.slice(0, 4)) - 2}-${MONTH.slice(5)}`
+    await page.goto(`${server.url}/?view=calendar&m=${empty}`, { waitUntil: 'networkidle0' })
+    await page.waitForSelector('.cal-grid')
+    expect(await page.$$eval('.cal-day .chip', (els) => els.length)).toBe(0)
+    expect(await page.$eval('#month-count', (el) => el.textContent!.trim())).toBe('No meetings')
+    expect(await visible('#jump-next')).toBe(true)
+
+    await page.click('#jump-next')
+    expect(await page.$$eval('.cal-day .chip', (els) => els.length)).toBeGreaterThan(0)
+  })
+
+  it('hides the past-meetings toggle, which the month already decides', async () => {
+    await openCalendar()
+    expect(await visible('#past-toggle')).toBe(false)
+    await page.click('#view-list')
+    expect(await visible('#past-toggle')).toBe(true)
+    expect(await visible('#calendar')).toBe(false)
+    expect(await visible('#list')).toBe(true)
   })
 })

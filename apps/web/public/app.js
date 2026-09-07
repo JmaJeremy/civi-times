@@ -12,10 +12,23 @@ const state = {
   filters: { j: new Set(), type: new Set(), level: new Set() },
   showPackages: false,
   showPast: false,
+  view: 'list',
+  /** Month shown by the calendar, 'YYYY-MM'. */
+  month: '',
+  /** Day whose meetings are listed under the grid, 'YYYY-MM-DD' or null. */
+  selectedDay: null,
 }
 
 const $ = (id) => document.getElementById(id)
 const todayISO = () => new Date().toISOString().slice(0, 10)
+const thisMonth = () => todayISO().slice(0, 7)
+
+/** Shift 'YYYY-MM' by whole months. Done in UTC so no local DST edge can shift the date. */
+function shiftMonth(month, delta) {
+  const [y, m] = month.split('-').map(Number)
+  const d = new Date(Date.UTC(y, m - 1 + delta, 1))
+  return d.toISOString().slice(0, 7)
+}
 
 /* ---------- URL state ---------- */
 
@@ -27,6 +40,8 @@ function readUrl() {
   state.filters.level = set('level')
   state.showPackages = p.get('packages') === '1'
   state.showPast = p.get('past') === '1'
+  state.view = p.get('view') === 'calendar' ? 'calendar' : 'list'
+  state.month = /^\d{4}-\d{2}$/.test(p.get('m') || '') ? p.get('m') : thisMonth()
 }
 
 function writeUrl() {
@@ -36,6 +51,12 @@ function writeUrl() {
   }
   if (state.showPackages) p.set('packages', '1')
   if (state.showPast) p.set('past', '1')
+  if (state.view === 'calendar') {
+    p.set('view', 'calendar')
+    // Only pin the month if it is not the one the page would open on anyway, so a
+    // shared "current month" link stays current for whoever opens it.
+    if (state.month !== thisMonth()) p.set('m', state.month)
+  }
   const qs = p.toString()
   history.replaceState(null, '', qs ? `?${qs}` : location.pathname)
 }
@@ -53,16 +74,29 @@ function icsUrl() {
 
 /* ---------- filtering ---------- */
 
+function matchesFilters(e) {
+  if (!state.showPackages && e.category === 'information-package') return false
+  if (state.filters.j.size && !state.filters.j.has(e.jurisdictionSlug)) return false
+  if (state.filters.type.size && !state.filters.type.has(e.meetingType)) return false
+  if (state.filters.level.size && !state.filters.level.has(e.level)) return false
+  return true
+}
+
+/**
+ * Which dates are in scope, which is the one thing the two views disagree about.
+ *
+ * The list looks forward from today unless asked otherwise. The calendar is scoped by
+ * the month on screen instead: someone who has deliberately paged back to August wants
+ * to see August, and applying the "past meetings" rule there would show them an empty
+ * grid.
+ */
+function inDateScope(e) {
+  if (state.view === 'calendar') return e.localDate.slice(0, 7) === state.month
+  return state.showPast || e.localDate >= todayISO()
+}
+
 function visibleEvents() {
-  const today = todayISO()
-  return state.events.filter((e) => {
-    if (!state.showPackages && e.category === 'information-package') return false
-    if (!state.showPast && e.localDate < today) return false
-    if (state.filters.j.size && !state.filters.j.has(e.jurisdictionSlug)) return false
-    if (state.filters.type.size && !state.filters.type.has(e.meetingType)) return false
-    if (state.filters.level.size && !state.filters.level.has(e.level)) return false
-    return true
-  })
+  return state.events.filter((e) => matchesFilters(e) && inDateScope(e))
 }
 
 /* ---------- rendering ---------- */
@@ -153,6 +187,206 @@ function renderEvent(e) {
       ${docs.length ? `<div class="docs">${docs.join('')}</div>` : ''}
     </div>
   </article>`
+}
+
+/* ---------- calendar view ---------- */
+
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const fmtMonth = new Intl.DateTimeFormat('en-CA', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+
+/** Cells for a month grid: whole weeks, padded with the neighbouring months' days. */
+function monthGrid(month) {
+  const [year, m] = month.split('-').map(Number)
+  const first = new Date(Date.UTC(year, m - 1, 1))
+  const start = new Date(first)
+  start.setUTCDate(1 - first.getUTCDay())
+
+  const cells = []
+  const cursor = new Date(start)
+  // Always emit whole weeks, and keep going until the month is covered.
+  while (cells.length < 42) {
+    const iso = cursor.toISOString().slice(0, 10)
+    cells.push({ iso, day: cursor.getUTCDate(), inMonth: iso.slice(0, 7) === month })
+    cursor.setUTCDate(cursor.getUTCDate() + 1)
+    if (cells.length % 7 === 0 && cursor.toISOString().slice(0, 7) !== month) break
+  }
+  return cells
+}
+
+const MAX_CHIPS = 3
+
+/**
+ * A compact time for calendar chips: "9am", "2:30pm".
+ *
+ * A month cell has only a few characters to spare, and the long form ("9:00 a.m.") ate
+ * roughly half of it — squeezing out the municipality name, which is the thing that
+ * actually distinguishes one Council meeting from another. The full form is still used
+ * everywhere there is room for it.
+ */
+function compactTime(t) {
+  const [h, m] = t.split(':').map(Number)
+  const hour = h % 12 === 0 ? 12 : h % 12
+  const suffix = h >= 12 ? 'pm' : 'am'
+  return m === 0 ? `${hour}${suffix}` : `${hour}:${String(m).padStart(2, '0')}${suffix}`
+}
+
+function renderCalendar() {
+  const events = visibleEvents()
+  const byDay = new Map()
+  for (const e of events) {
+    if (!byDay.has(e.localDate)) byDay.set(e.localDate, [])
+    byDay.get(e.localDate).push(e)
+  }
+
+  const [year, m] = state.month.split('-').map(Number)
+  $('month-label').textContent = fmtMonth.format(new Date(Date.UTC(year, m - 1, 1)))
+  $('month-count').textContent = events.length
+    ? `${events.length} meeting${events.length === 1 ? '' : 's'}`
+    : 'No meetings'
+
+  const today = todayISO()
+  const cells = monthGrid(state.month)
+
+  /*
+   * Which municipality a meeting belongs to is the thing that distinguishes one "Council"
+   * from another, and there are nineteen of them. Show it on the chip whenever more than
+   * one is on screen; once someone has filtered to a single place, repeating it on every
+   * chip is just noise competing for the little width a cell has.
+   */
+  const showPlace = new Set(events.map((e) => e.jurisdictionSlug)).size > 1
+
+  const head = WEEKDAYS.map((d) => `<div class="cal-weekday"><abbr title="${d}day">${d}</abbr></div>`).join('')
+
+  const body = cells
+    .map((cell) => {
+      const dayEvents = byDay.get(cell.iso) ?? []
+      const classes = ['cal-day']
+      if (!cell.inMonth) classes.push('is-outside')
+      if (cell.iso === today) classes.push('is-today')
+      if (cell.iso === state.selectedDay) classes.push('is-selected')
+      if (dayEvents.length) classes.push('has-events')
+
+      const chips = dayEvents
+        .slice(0, MAX_CHIPS)
+        .map((e) => {
+          const dateOnly = e.timePrecision === 'date-only'
+          const place = splitPlaceName(e.jurisdictionName).name
+          const fullTime = dateOnly ? 'Time not published' : formatTime(e.localTime)
+          return `<span class="chip ${e.status === 'cancelled' ? 'is-cancelled' : ''}"
+            title="${esc(`${fullTime} · ${e.jurisdictionName} · ${e.title}`)}">
+            <span class="chip-time">${dateOnly ? '' : esc(compactTime(e.localTime))}</span>
+            ${showPlace ? `<span class="chip-place">${esc(place)}</span>` : ''}
+            <span class="chip-title">${esc(e.title)}</span></span>`
+        })
+        .join('')
+      const more =
+        dayEvents.length > MAX_CHIPS
+          ? `<span class="chip-more">+${dayEvents.length - MAX_CHIPS} more</span>`
+          : ''
+
+      // Dots stand in for chips where a cell is too narrow to read, on small screens.
+      const dots = dayEvents
+        .slice(0, 4)
+        .map((e) => `<span class="dot ${e.status === 'cancelled' ? 'is-cancelled' : ''}"></span>`)
+        .join('')
+
+      return `<button type="button" class="${classes.join(' ')}" data-day="${cell.iso}"
+        aria-label="${esc(cell.iso)}, ${dayEvents.length} meeting${dayEvents.length === 1 ? '' : 's'}"
+        ${dayEvents.length ? '' : 'aria-disabled="true"'}>
+        <span class="cal-daynum">${cell.day}</span>
+        <span class="cal-chips">${chips}${more}</span>
+        <span class="cal-dots">${dots}</span>
+      </button>`
+    })
+    .join('')
+
+  const empty = events.length
+    ? ''
+    : `<p class="cal-empty">No meetings in this month${
+        nextMonthWithEvents() ? ` · <button type="button" class="linkish" id="jump-next">Jump to ${esc(fmtMonth.format(new Date(`${nextMonthWithEvents()}-01T00:00:00Z`)))}</button>` : ''
+      }</p>`
+
+  $('calendar').innerHTML = `
+    <div class="cal-grid" role="grid">${head}${body}</div>
+    ${empty}
+    <div id="day-detail" class="day-detail"></div>`
+
+  for (const button of $('calendar').querySelectorAll('.cal-day')) {
+    button.onclick = () => selectDay(button.dataset.day)
+  }
+  const jump = $('jump-next') // present only when the month is empty
+  if (jump) {
+    jump.onclick = () => {
+      state.month = nextMonthWithEvents()
+      state.selectedDay = null
+      refreshAll()
+    }
+  }
+
+  renderDayDetail(byDay)
+  updateStats(events)
+}
+
+/** The soonest month after the current one that has any matching meetings. */
+function nextMonthWithEvents() {
+  const months = state.events
+    .filter((e) => matchesFilters(e))
+    .map((e) => e.localDate.slice(0, 7))
+    .filter((m) => m > state.month)
+    .sort()
+  return months[0] ?? null
+}
+
+function selectDay(iso) {
+  state.selectedDay = state.selectedDay === iso ? null : iso
+  renderCalendar()
+}
+
+function renderDayDetail(byDay) {
+  const panel = $('day-detail')
+  if (!panel) return
+
+  if (!state.selectedDay) {
+    panel.innerHTML = ''
+    panel.hidden = true
+    return
+  }
+  const dayEvents = byDay.get(state.selectedDay) ?? []
+  panel.hidden = false
+  panel.innerHTML = `
+    <div class="day-head">
+      <h2>${esc(fmtDay.format(new Date(`${state.selectedDay}T00:00:00Z`)))}</h2>
+      <button type="button" class="linkish" id="close-day">Close</button>
+    </div>
+    ${
+      dayEvents.length
+        ? dayEvents.map(renderEvent).join('')
+        : '<p class="cal-empty">No meetings on this day.</p>'
+    }`
+  $('close-day').onclick = () => {
+    state.selectedDay = null
+    renderCalendar()
+  }
+}
+
+/* ---------- view switching ---------- */
+
+function setView(view) {
+  state.view = view
+  state.selectedDay = null
+  // The past/packages scope changes with the view, so the tallies must be rebuilt.
+  refreshAll()
+}
+
+function applyView() {
+  const calendar = state.view === 'calendar'
+  $('list').hidden = calendar
+  $('calendar').hidden = !calendar
+  $('monthnav').hidden = !calendar
+  // "Past meetings" has no meaning once the month on screen defines the range.
+  $('past-toggle').hidden = calendar
+  $('view-list').setAttribute('aria-pressed', String(!calendar))
+  $('view-calendar').setAttribute('aria-pressed', String(calendar))
 }
 
 function updateStats(shown) {
@@ -356,8 +590,11 @@ const placeName = (slug) => state.jurisdictions.get(slug)?.name || slug
 function optionsFor(getter) {
   const counts = new Map()
   for (const e of state.events) {
+    // Deliberately ignores the j/type/level filters so the tallies do not collapse to
+    // zero as soon as something is selected, but it does respect the date scope so the
+    // numbers match what the current view can show.
     if (!state.showPackages && e.category === 'information-package') continue
-    if (!state.showPast && e.localDate < todayISO()) continue
+    if (!inDateScope(e)) continue
     const value = getter(e)
     if (value) counts.set(value, (counts.get(value) || 0) + 1)
   }
@@ -416,9 +653,11 @@ function rebuildMenus() {
 
 function refresh() {
   writeUrl()
+  applyView()
   syncMenus()
   renderActiveFilters()
-  renderList()
+  if (state.view === 'calendar') renderCalendar()
+  else renderList()
 }
 
 /** The option lists themselves only change when the past/packages toggles do. */
@@ -448,6 +687,28 @@ $('copy-ics').onclick = async () => {
     $('copy-ics').textContent = 'Select the link above'
   }
 }
+
+/* ---------- view + month controls ---------- */
+
+$('view-list').onclick = () => setView('list')
+$('view-calendar').onclick = () => setView('calendar')
+
+const goToMonth = (month) => {
+  state.month = month
+  state.selectedDay = null
+  refreshAll()
+}
+$('prev-month').onclick = () => goToMonth(shiftMonth(state.month, -1))
+$('next-month').onclick = () => goToMonth(shiftMonth(state.month, 1))
+$('this-month').onclick = () => goToMonth(thisMonth())
+
+document.addEventListener('keydown', (ev) => {
+  // Arrow keys page the calendar, but not while someone is typing in a search box.
+  if (state.view !== 'calendar') return
+  if (ev.target instanceof HTMLInputElement) return
+  if (ev.key === 'ArrowLeft') goToMonth(shiftMonth(state.month, -1))
+  if (ev.key === 'ArrowRight') goToMonth(shiftMonth(state.month, 1))
+})
 
 $('show-packages').onchange = (e) => {
   state.showPackages = e.target.checked

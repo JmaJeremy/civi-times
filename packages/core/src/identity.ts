@@ -53,6 +53,9 @@ export function contentHash(event: RawEvent): string {
       event.meetingType ?? null,
       event.localStart,
       event.localEnd ?? null,
+      // Whether a start time is real is content, not metadata: a source filling in a
+      // previously blank time is a change subscribers need to see.
+      event.timePrecision ?? 'exact',
       event.location ?? null,
       event.url ?? null,
       event.agendaUrl ?? null,

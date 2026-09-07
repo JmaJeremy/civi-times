@@ -124,12 +124,22 @@ export function mapCivicWebMeetings(
     const rawName = meeting.CleanName ?? meeting.Name ?? ''
     const title = stripTrailingDate(rawName) || typeName || 'Meeting'
 
+    /*
+     * An empty MeetingTime means the municipality has not published a start time —
+     * MeetingDateTime then reads "2026-09-16 00:00", which is a placeholder, not
+     * midnight. Taking it at face value puts "12:00 a.m." on the site and, worse, drops
+     * a midnight appointment into the calendar of anyone subscribed to the iCal feed.
+     * Five municipalities do this on at least 22 meetings.
+     */
+    const hasTime = Boolean(meeting.MeetingTime?.trim())
+
     return {
       externalId: String(meeting.Id),
       title,
       bodyName: typeName,
       meetingType: typeName,
       localStart: meeting.MeetingDateTime || `${meeting.MeetingDate} 00:00`,
+      timePrecision: hasTime ? 'exact' : 'date-only',
       location: meeting.MeetingLocation,
       url: meetingPageUrl(host, meeting.Id),
       agendaUrl: docs.agendaUrl,

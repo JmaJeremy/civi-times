@@ -25,14 +25,27 @@
       <div class="field" id="f-type"></div>
       <div class="field" id="f-level"></div>
       <label class="toggle"><input type="checkbox" id="show-packages"> Information packages</label>
-      <label class="toggle"><input type="checkbox" id="show-past"> Past meetings</label>
+      <label class="toggle" id="past-toggle"><input type="checkbox" id="show-past"> Past meetings</label>
       <span class="spacer"></span>
+      <div class="viewswitch" role="group" aria-label="View">
+        <button type="button" id="view-list" aria-pressed="true">List</button>
+        <button type="button" id="view-calendar" aria-pressed="false">Calendar</button>
+      </div>
       <button class="btn" id="subscribe">Subscribe</button>
     </div>
     <div class="active-filters" id="active"></div>
   </div>
 
+  <nav class="monthnav" id="monthnav" hidden>
+    <button type="button" id="prev-month" aria-label="Previous month">&lsaquo;</button>
+    <h2 id="month-label">&nbsp;</h2>
+    <button type="button" id="next-month" aria-label="Next month">&rsaquo;</button>
+    <button type="button" class="today-btn" id="this-month">Today</button>
+    <span class="month-count" id="month-count"></span>
+  </nav>
+
   <main id="list"><div class="loading">Loading meetings…</div></main>
+  <section id="calendar" hidden></section>
 
   <footer>
     <p>Meeting data is collected from each municipality's own public calendar and links back to the source.
