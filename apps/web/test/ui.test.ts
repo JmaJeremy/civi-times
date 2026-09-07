@@ -196,6 +196,64 @@ describeIfChrome('filter menus (real browser)', () => {
     })
   })
 
+  describe('list paging', () => {
+    const rendered = () => page.$$eval('#list .event', (els) => els.length)
+
+    it('shows a first page rather than every meeting at once', async () => {
+      const total = EVENTS.length
+      expect(total, 'stub should have more than one page').toBeGreaterThan(30)
+      expect(await rendered()).toBe(30)
+      expect(await isVisible('#load-more')).toBe(true)
+    })
+
+    it('says how many are rendered out of how many match', async () => {
+      expect(await page.$eval('.more-count', (el) => el.textContent!.trim())).toMatch(
+        new RegExp(`^30 of ${EVENTS.length} meetings`),
+      )
+    })
+
+    it('never leaves a day heading standing above no meetings', async () => {
+      const empties = await page.$$eval('#list .day', (days) =>
+        days.filter((d) => d.querySelectorAll('.event').length === 0).length,
+      )
+      expect(empties).toBe(0)
+    })
+
+    it('appends the next page without refetching', async () => {
+      const before = await page.evaluate(() => performance.getEntriesByType('resource').length)
+      await page.click('#load-more')
+      expect(await rendered()).toBe(Math.min(60, EVENTS.length))
+      const after = await page.evaluate(() => performance.getEntriesByType('resource').length)
+      // The whole dataset arrived up front; paging must not go back to the network.
+      expect(after).toBe(before)
+    })
+
+    it('shows everything on "show all" and drops the button', async () => {
+      await page.reload({ waitUntil: 'networkidle0' })
+      await page.waitForSelector('#list .event')
+      const all = await page.$('#load-all')
+      if (all) {
+        await all.click()
+        expect(await rendered()).toBe(EVENTS.length)
+        expect(await page.$('#load-more')).toBeNull()
+      }
+    })
+
+    it('starts the list over when a filter changes', async () => {
+      await page.reload({ waitUntil: 'networkidle0' })
+      await page.waitForSelector('#load-more')
+      await page.click('#load-more')
+      expect(await rendered()).toBeGreaterThan(30)
+
+      await page.click('#f-jurisdiction > button')
+      await page.click('#f-jurisdiction .menu-options label input')
+      await page.click('h1')
+      // A new filtered list is a new first page, not a continuation of the old one.
+      expect(await rendered()).toBeLessThanOrEqual(30)
+      await page.evaluate(() => (window as unknown as { __clearAll(): void }).__clearAll())
+    })
+  })
+
   it('filters the meeting list and reflects it in the URL', async () => {
     await setSearch('#f-jurisdiction', 'tay')
     await page.click('#f-jurisdiction .menu-options label:not([hidden]) input')

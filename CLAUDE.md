@@ -137,6 +137,13 @@ Penetanguishene Transit) are correctly listed once by their host.
 
 ## Views
 
+The list renders `PAGE_SIZE` (30) meetings with a "Load more" beneath it. That is a
+RENDER cap, not a fetch: the whole dataset still arrives in one response, which is what
+keeps filtering instant and makes "show all" free. `growList()` therefore calls
+`renderList()` directly — never `refresh()`, which resets the cap because a changed
+filter is a new list. Day groups are built from the visible slice only, so a heading
+never stands above no meetings.
+
 The site has a list view and a month calendar (`?view=calendar&m=YYYY-MM`). They differ in
 exactly one respect, `inDateScope()` in `app.js`: the list looks forward from today unless
 "past meetings" is ticked, while the calendar is scoped by the month on screen — someone

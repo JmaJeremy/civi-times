@@ -31,8 +31,13 @@ const future = (days: number): string => {
  * so calendar tests derive the month from EVENTS rather than assuming the current one —
  * otherwise they would break for a few days at the end of every month.
  */
+/** Enough meetings that the list pages more than once. */
+const PER_PLACE = ['Council', 'Committee of the Whole', 'Planning', 'Heritage Committee',
+  'Accessibility Committee', 'Committee of Adjustment', 'Library Board', 'Special Council',
+  'Budget Committee', 'Economic Development', 'Parks and Recreation', 'Police Services Board']
+
 export const EVENTS = PLACES.flatMap((place, i) =>
-  ['Council', 'Committee of the Whole'].map((type, k) => ({
+  PER_PLACE.map((type, k) => ({
     id: `${place.slug}:${k}`,
     sourceSlug: place.slug,
     jurisdictionSlug: place.slug,
@@ -42,9 +47,9 @@ export const EVENTS = PLACES.flatMap((place, i) =>
     bodyName: type,
     meetingType: type,
     category: 'meeting',
-    startsAtUtc: `${future(i * 2 + k + 1)}T13:00:00.000Z`,
+    startsAtUtc: `${future(i * PER_PLACE.length + k + 1)}T13:00:00.000Z`,
     endsAtUtc: null,
-    localDate: future(i * 2 + k + 1),
+    localDate: future(i * PER_PLACE.length + k + 1),
     localTime: '09:00',
     timezone: 'America/Toronto',
     timePrecision: 'exact',

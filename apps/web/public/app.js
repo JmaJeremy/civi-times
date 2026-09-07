@@ -13,6 +13,8 @@ const state = {
   showPackages: false,
   showPast: false,
   view: 'list',
+  /** How many meetings the list renders. Raised by "Load more"; reset by any filter change. */
+  limit: 0,
   /** Visible events grouped by date, rebuilt whenever the calendar renders. */
   byDay: new Map(),
   /** Month shown by the calendar, 'YYYY-MM'. */
@@ -127,20 +129,24 @@ const esc = (s) =>
   String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c])
 
 function renderList() {
-  const events = visibleEvents()
+  const matching = visibleEvents()
   const list = $('list')
 
-  if (!events.length) {
+  if (!matching.length) {
     list.innerHTML = `<div class="empty">
       <p>No meetings match these filters.</p>
       <button class="btn ghost" onclick="window.__clearAll()">Clear all filters</button>
     </div>`
-    updateStats(events)
+    updateStats(0, 0)
     return
   }
 
+  const shown = matching.slice(0, state.limit || PAGE_SIZE)
+  const remaining = matching.length - shown.length
+
+  // Group only what is on screen, so a day heading never appears above nothing.
   const byDay = new Map()
-  for (const e of events) {
+  for (const e of shown) {
     if (!byDay.has(e.localDate)) byDay.set(e.localDate, [])
     byDay.get(e.localDate).push(e)
   }
@@ -156,8 +162,38 @@ function renderList() {
       ${dayEvents.map(renderEvent).join('')}
     </section>`)
   }
+
+  if (remaining > 0) {
+    const next = Math.min(PAGE_SIZE, remaining)
+    parts.push(`<div class="more">
+      <button class="btn ghost" id="load-more">Load ${next} more</button>
+      <p class="more-count">${shown.length} of ${matching.length} meetings${
+        remaining > next ? ` &middot; <button type="button" class="linkish" id="load-all">show all</button>` : ''
+      }</p>
+    </div>`)
+  }
+
   list.innerHTML = parts.join('')
-  updateStats(events)
+
+  if (remaining > 0) {
+    // Everything is already in memory, so both of these are instant.
+    $('load-more').onclick = () => growList(PAGE_SIZE)
+    const all = $('load-all')
+    if (all) all.onclick = () => growList(matching.length)
+  }
+  updateStats(shown.length, matching.length)
+}
+
+/** Render more of the same filtered set. Deliberately not a refresh: no refetch, no reset. */
+function growList(by) {
+  const previous = state.limit || PAGE_SIZE
+  state.limit = previous + by
+  renderList()
+  // Put focus on the first newly revealed meeting so keyboard and screen-reader users
+  // carry on from where the list grew rather than at the top.
+  const headings = document.querySelectorAll('#list .event h3 a')
+  const next = headings[previous]
+  if (next) next.focus({ preventScroll: true })
 }
 
 function renderEvent(e) {
@@ -216,6 +252,16 @@ function monthGrid(month) {
 }
 
 const MAX_CHIPS = 3
+
+/**
+ * How many meetings the list shows before asking.
+ *
+ * Thirty is roughly a fortnight of county-wide business — two or three screens, and a
+ * natural horizon for "what is coming up". This caps RENDERING only: the whole dataset
+ * still arrives in one small response, which is what keeps filtering instant and lets
+ * "Show all" cost nothing.
+ */
+const PAGE_SIZE = 30
 
 /**
  * A compact time for calendar chips: "9am", "2:30pm".
@@ -329,7 +375,7 @@ function renderCalendar() {
   // Keep an open modal in step with the grid behind it, so changing a filter while a
   // day is open does not leave it showing meetings that no longer match.
   if (dayModal.open) renderDayModal(byDay)
-  updateStats(events)
+  updateStats(events.length, events.length)
 }
 
 /** The soonest month after the current one that has any matching meetings. */
@@ -427,14 +473,18 @@ function applyView() {
   $('view-calendar').setAttribute('aria-pressed', String(calendar))
 }
 
-function updateStats(shown) {
+function updateStats(rendered, matching) {
   const total = state.events.length
   // Derived from the events themselves so the count is still right if the places
   // lookup failed and we are falling back to slugs for labels.
   const places = state.jurisdictions.size || new Set(state.events.map((e) => e.jurisdictionSlug)).size
-  $('stats').textContent =
-    `${shown.length} meeting${shown.length === 1 ? '' : 's'} shown · ` +
-    `${total} tracked across ${places} municipalities`
+  // Say "matching" rather than "shown" once the list is capped, so the headline number
+  // is not contradicted by the count above the Load more button.
+  const lead =
+    matching > rendered
+      ? `${matching} meeting${matching === 1 ? '' : 's'} match`
+      : `${matching} meeting${matching === 1 ? '' : 's'} shown`
+  $('stats').textContent = `${lead} · ${total} tracked across ${places} municipalities`
 }
 
 /* ---------- filter menus ---------- */
@@ -690,6 +740,8 @@ function rebuildMenus() {
 }
 
 function refresh() {
+  // A changed filter is a new list, so paging starts again from the first page.
+  state.limit = PAGE_SIZE
   writeUrl()
   applyView()
   syncMenus()
