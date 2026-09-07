@@ -44,6 +44,17 @@
 
 * { box-sizing: border-box; }
 
+/*
+ * The `hidden` attribute must always win.
+ *
+ * The browser's own `[hidden] { display: none }` is a user-agent rule, so ANY author
+ * rule setting `display` on the same element defeats it — no extra specificity needed.
+ * Several elements here are flex or grid containers that the script shows and hides via
+ * `el.hidden`, and without this the attribute silently becomes a no-op: menus render
+ * open and cannot be closed, and search cannot hide the rows it filters out.
+ */
+[hidden] { display: none !important; }
+
 body {
   margin: 0;
   background: var(--bg);

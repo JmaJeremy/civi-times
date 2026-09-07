@@ -106,7 +106,17 @@ The old script was built on two premises that are both false today:
 
 ## Testing
 
-All tests are fixture-based and hit no network. Fixtures in
+`apps/web/test/ui.test.ts` drives the real front end in headless Chrome via
+`puppeteer-core` (no browser download — it uses the system Chrome, and the suite skips
+itself if none is found). It exists because two UI bugs shipped that reading the source
+could not have caught: `.menu { display: flex }` is an author rule, so it silently
+defeated the browser's user-agent `[hidden] { display: none }`, leaving every dropdown
+stuck open and the search unable to hide the rows it filtered. **Hence the global
+`[hidden] { display: none !important }` rule in `style.css` — do not remove it**, and
+assert on `element.checkVisibility()` rather than the `hidden` property, since the latter
+was set correctly the whole time.
+
+The remaining tests are fixture-based and hit no network. Fixtures in
 [packages/adapters/test/fixtures/](packages/adapters/test/fixtures/) are real captured
 responses. When adapter behaviour changes, re-capture rather than hand-editing — the point
 is that they reflect what these servers actually send.
