@@ -176,8 +176,18 @@ npx wrangler d1 execute civi-times --remote \
 curl -X POST "https://civi-times-ingest.thejeremy-net.workers.dev/run?token=$INGEST_TOKEN"
 ```
 
-- Site: https://civi-times.thejeremy-net.workers.dev
-- Ingest: https://civi-times-ingest.thejeremy-net.workers.dev
+- Site: https://civi-times.ca (canonical) — https://civi-times.thejeremy-net.workers.dev is
+  kept enabled as a fallback origin
+- Ingest: https://civi-times-ingest.thejeremy-net.workers.dev (token-guarded, not public)
+
+`civi-times.ca` and `www.civi-times.ca` are attached as Workers Custom Domains in
+`apps/web/wrangler.jsonc`; the worker 301s www to the apex so generated links have one
+canonical origin. **Keep `workers_dev: true`** — declaring `routes` disables it by
+default, which would leave no reachable URL if the custom domain stopped resolving.
+
+Canonical origin matters more than usual here: iCal feed URLs and event permalinks embed
+whichever host generated them, so serving the same content on two hosts splits calendar
+subscriptions between them.
 
 `.env` holds the Cloudflare credentials and the ingest token and is gitignored — keep it
 that way; `git add -A` would otherwise commit an API token.

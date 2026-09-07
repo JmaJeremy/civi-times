@@ -5,7 +5,17 @@
   "compatibility_date": "2026-09-01",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  // Kept on as a fallback origin. Declaring routes turns it off by default, which would
+  // leave the site with no reachable URL if the custom domain ever stopped resolving.
+  "workers_dev": true,
   "assets": { "directory": "./public", "binding": "ASSETS" },
+  // Custom domains create their own DNS records and certificates. www is attached too,
+  // but the worker redirects it to the apex so there is a single canonical origin —
+  // iCal feed URLs and event permalinks embed the origin they were generated from.
+  "routes": [
+    { "pattern": "civi-times.ca", "custom_domain": true },
+    { "pattern": "www.civi-times.ca", "custom_domain": true }
+  ],
   "d1_databases": [
     {
       "binding": "DB",

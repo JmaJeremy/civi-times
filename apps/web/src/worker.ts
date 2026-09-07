@@ -36,9 +36,22 @@ const escapeHtml = (value: string): string =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
   )
 
+/** The one host every generated link should use. */
+const CANONICAL_HOST = 'civi-times.ca'
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
+
+    /*
+     * Keep one canonical origin. Subscribed calendar feeds and shared event permalinks
+     * carry whichever host produced them, so letting www and the apex both serve would
+     * split subscriptions across two URLs for the same meetings.
+     */
+    if (url.hostname === `www.${CANONICAL_HOST}`) {
+      url.hostname = CANONICAL_HOST
+      return Response.redirect(url.toString(), 301)
+    }
 
     try {
       // '/api/events' collides with a common analytics endpoint pattern (PostHog and
