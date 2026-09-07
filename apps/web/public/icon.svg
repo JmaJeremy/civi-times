@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Civi-Times">
+  <rect width="48" height="48" rx="10" fill="#1c5d4a"/>
+  <path d="M11 30 A 13 13 0 0 1 37 30" fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+  <path d="M12.5 38.5 H35.5" stroke="#ffffff" stroke-width="5" stroke-linecap="round"/>
+</svg>

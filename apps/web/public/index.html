@@ -8,13 +8,26 @@
 <meta name="theme-color" content="#1c5d4a">
 <meta property="og:title" content="Civi-Times — civic meetings in Simcoe County">
 <meta property="og:description" content="Every council and committee meeting across Simcoe County, in one place.">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 <div class="wrap">
   <header class="masthead">
-    <h1>Civi-Times</h1>
+    <div class="wordmark">
+      <svg class="mark" viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
+        <circle cx="9" cy="29" r="3.6" fill="currentColor"/>
+        <circle cx="13.4" cy="18.4" r="3.6" fill="currentColor"/>
+        <circle cx="24" cy="14" r="3.6" fill="currentColor"/>
+        <circle cx="34.6" cy="18.4" r="3.6" fill="currentColor"/>
+        <circle cx="39" cy="29" r="3.6" fill="currentColor"/>
+        <path d="M9 38.5 H39" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>
+      </svg>
+      <h1>Civi-Times</h1>
+    </div>
     <p class="tagline">Every council and committee meeting across Simcoe County, in one place.</p>
     <p class="stats" id="stats">Loading…</p>
   </header>
@@ -51,6 +64,9 @@
     <p>Meeting data is collected from each municipality's own public calendar and links back to the source.
        Always confirm details with the municipality before attending.</p>
     <p id="sources-line"></p>
+    <p class="support">Civi-Times is a hobby project, free and without ads.
+      <script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="hZEeGL3" data-color="#FFDD00" data-emoji="" data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff"></script>
+    </p>
   </footer>
 </div>
 

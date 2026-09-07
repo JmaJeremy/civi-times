@@ -39,6 +39,20 @@ const escapeHtml = (value: string): string =>
 /** The one host every generated link should use. */
 const CANONICAL_HOST = 'civi-times.ca'
 
+/**
+ * The Civi-Times mark: five seats in an arc above the dais rule. Inlined rather than
+ * loaded so a shared permalink paints it with the first byte, and drawn in currentColor
+ * so it follows the page's theme like the rest of the type.
+ */
+const MARK = `<svg class="mark" viewBox="0 0 48 48" fill="none" aria-hidden="true" focusable="false">
+  <circle cx="9" cy="29" r="3.6" fill="currentColor"/>
+  <circle cx="13.4" cy="18.4" r="3.6" fill="currentColor"/>
+  <circle cx="24" cy="14" r="3.6" fill="currentColor"/>
+  <circle cx="34.6" cy="18.4" r="3.6" fill="currentColor"/>
+  <circle cx="39" cy="29" r="3.6" fill="currentColor"/>
+  <path d="M9 38.5 H39" stroke="var(--accent)" stroke-width="4" stroke-linecap="round"/>
+</svg>`
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url)
@@ -171,9 +185,13 @@ function renderEventPage(event: EventWithName, origin: string): string {
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
 <meta property="og:type" content="website">
+<meta name="theme-color" content="#1c5d4a">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
 </head><body class="event-page">
-<header class="topbar"><a href="/" class="home">← All meetings</a></header>
+<header class="topbar"><a href="/" class="home">${MARK}<span>&larr; All meetings</span></a></header>
 <main class="card">
   <p class="eyebrow">${escapeHtml(event.jurisdictionName)}${event.meetingType ? ` · ${escapeHtml(event.meetingType)}` : ''}</p>
   <h1>${escapeHtml(event.title)}</h1>

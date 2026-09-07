@@ -69,6 +69,10 @@ a { color: inherit; }
 
 /* ---- masthead ---- */
 .masthead { border-bottom: 2px solid var(--ink); margin-bottom: 22px; padding: 30px 0 16px; }
+.wordmark { display: flex; align-items: center; gap: 16px; }
+/* The mark tracks the wordmark's own clamp so the lockup holds at every width.
+   Seats inherit the ink colour and the dais rule takes the accent, so it themes itself. */
+.mark { width: clamp(32px, 4.4vw, 46px); height: auto; flex: none; color: var(--ink); }
 .masthead h1 {
   margin: 0;
   font: 700 clamp(30px, 6vw, 46px)/1.05 ui-serif, Georgia, "Times New Roman", serif;
@@ -365,11 +369,19 @@ body.modal-open { overflow: hidden; }
 
 footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 13px; }
 footer a { color: var(--ink-2); }
+.support { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+/* The Buy Me a Coffee script injects its own button here; keep it in the text baseline. */
+.support img { vertical-align: middle; }
 
 /* ---- single event page ---- */
 .event-page { padding: 0 20px 60px; }
 .event-page .topbar { max-width: 680px; margin: 0 auto; padding: 22px 0; }
-.event-page .home { color: var(--ink-2); text-decoration: none; font-size: 14px; }
+.event-page .home {
+  display: inline-flex; align-items: center; gap: 10px;
+  color: var(--ink-2); text-decoration: none; font-size: 14px;
+}
+.event-page .home:hover { color: var(--ink); }
+.event-page .home .mark { width: 26px; color: var(--ink); }
 .event-page .card {
   max-width: 680px; margin: 0 auto; background: var(--surface);
   border: 1px solid var(--line); border-radius: var(--radius);
@@ -398,6 +410,7 @@ footer a { color: var(--ink-2); }
 }
 
 @media (max-width: 620px) {
+  .wordmark { gap: 11px; }
   .menu { position: fixed; left: 12px; right: 12px; top: auto; min-width: 0; max-width: none; }
   .modal[open] { align-items: flex-end; }
   .modal-inner {
