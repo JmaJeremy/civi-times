@@ -1,5 +1,0 @@
-bs4
-pymongo
-selenium
-webdriver-manager
-requests
