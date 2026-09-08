@@ -1,4 +1,4 @@
-import { contentHash, eventId } from './identity.ts'
+import { contentHash, eventId, shortCode } from './identity.ts'
 import { analyzeTitle, categorize } from './title.ts'
 import { toWallString, wallDate, wallTime, wallTimeToUtc } from './time.ts'
 import type { CanonicalEvent, RawEvent, Source } from './types.ts'
@@ -45,12 +45,15 @@ export function normalizeEvent(source: Source, event: RawEvent): CanonicalEvent 
   // Sources announce cancellations in free text as often as they remove the listing.
   const analysis = analyzeTitle(event.title ?? '', event.location)
 
+  const id = eventId(source, event.externalId)
+
   return {
-    id: eventId(source, event.externalId),
+    id,
     sourceSlug: source.slug,
     jurisdictionSlug: source.slug,
     level: source.level,
     externalId: event.externalId,
+    shortCode: shortCode(id),
 
     title: clean(analysis.title) ?? 'Untitled meeting',
     bodyName: clean(event.bodyName),

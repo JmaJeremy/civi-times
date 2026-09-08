@@ -8,6 +8,7 @@ const event = (over: Partial<CanonicalEvent> = {}): CanonicalEvent => ({
   jurisdictionSlug: 'barrie',
   level: 'municipal',
   externalId: 'abc-123',
+  shortCode: 'a1b2c3d',
   title: 'City Council',
   bodyName: 'City Council',
   meetingType: 'City Council',

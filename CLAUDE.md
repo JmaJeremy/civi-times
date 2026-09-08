@@ -166,6 +166,20 @@ Two things about that dialog are load-bearing and easy to undo by accident:
   that button and strands focus on `<body>`. `selectDay` toggles the highlight class in
   place and reads `state.byDay`, which `renderCalendar` caches for exactly this reason.
 
+## Sharing
+
+Every page carries full Open Graph and Twitter Card metadata plus a 1200×630 `og.png`;
+meeting pages also emit schema.org `Event` JSON-LD. Share URLs must be ABSOLUTE, but the
+shell is a static file with no idea which host served it, so `index.html` contains
+`__ORIGIN__` placeholders that the worker substitutes with the serving origin. That needs
+`run_worker_first: ["/", "/index.html"]` in `wrangler.jsonc` — without it Cloudflare's
+asset router serves the shell directly and the placeholder ships to users verbatim.
+
+Meetings live at `/m/{short_code}` — seven base-36 characters derived from the event id
+(`shortCode()` in core), stored with a unique index. Truncating the id instead does not
+work: Essa's ids are date-prefixed slugs that share every useful prefix. `/event/{id}`
+still resolves and 301s to the short form so there is one canonical URL.
+
 ## Deployment
 
 Two Workers, both on the shared `civi-times` D1 database:
@@ -183,8 +197,8 @@ npx wrangler d1 execute civi-times --remote \
 curl -X POST "https://civi-times-ingest.thejeremy-net.workers.dev/run?token=$INGEST_TOKEN"
 ```
 
-- Site: https://civi-times.ca (canonical) — https://civi-times.thejeremy-net.workers.dev is
-  kept enabled as a fallback origin
+- Site: https://civi-times.ca (live, canonical) — https://civi-times.thejeremy-net.workers.dev
+  is kept enabled as a fallback origin
 - Ingest: https://civi-times-ingest.thejeremy-net.workers.dev (token-guarded, not public)
 
 `civi-times.ca` and `www.civi-times.ca` are attached as Workers Custom Domains in

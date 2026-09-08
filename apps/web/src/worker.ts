@@ -31,6 +31,20 @@ async function queryEvents(env: Env, url: URL): Promise<EventWithName[]> {
   return results.map(rowToEvent)
 }
 
+async function lookupEvent(env: Env, column: 'short_code' | 'id', value: string) {
+  // `column` is one of two literals, never user input; `value` is always bound.
+  return env.DB.prepare(
+    `SELECT e.*, j.level AS level, j.name AS jurisdiction_name
+       FROM events e JOIN jurisdictions j ON j.slug = e.source_slug
+      WHERE e.${column} = ?`,
+  )
+    .bind(value)
+    .first<any>()
+}
+
+/** The one asset that carries share metadata and therefore needs origin substitution. */
+const isShell = (pathname: string): boolean => pathname === '/' || pathname === '/index.html'
+
 const escapeHtml = (value: string): string =>
   value.replace(/[&<>"']/g, (c) =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!,
@@ -117,23 +131,37 @@ export default {
         })
       }
 
-      // Server-rendered so a shared link previews properly.
-      if (url.pathname.startsWith('/event/')) {
-        const id = decodeURIComponent(url.pathname.slice('/event/'.length))
-        const row = await env.DB.prepare(
-          `SELECT e.*, j.level AS level, j.name AS jurisdiction_name
-             FROM events e JOIN jurisdictions j ON j.slug = e.source_slug
-            WHERE e.id = ?`,
-        )
-          .bind(id)
-          .first<any>()
+      // The short, shareable form. Server-rendered so a pasted link previews properly.
+      if (url.pathname.startsWith('/m/')) {
+        const code = decodeURIComponent(url.pathname.slice('/m/'.length))
+        const row = await lookupEvent(env, 'short_code', code)
         if (!row) return new Response('Meeting not found', { status: 404 })
         return new Response(renderEventPage(rowToEvent(row), url.origin), {
           headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'public, max-age=600' },
         })
       }
 
-      return env.ASSETS.fetch(request)
+      // The original long form, kept working for links already shared. It redirects so
+      // there is a single canonical URL rather than two pages with the same content.
+      if (url.pathname.startsWith('/event/')) {
+        const id = decodeURIComponent(url.pathname.slice('/event/'.length))
+        const row = await lookupEvent(env, 'id', id)
+        if (!row) return new Response('Meeting not found', { status: 404 })
+        return Response.redirect(`${url.origin}/m/${row.short_code}`, 301)
+      }
+
+      // Share metadata needs ABSOLUTE urls — Twitter/X rejects relative og:image outright
+      // — but the shell is a static file with no idea which host served it. Substituting
+      // here keeps shares correct on workers.dev now and on the custom domain later,
+      // without pinning a host that may not resolve yet.
+      const asset = await env.ASSETS.fetch(request)
+      if (isShell(url.pathname) && asset.ok) {
+        const html = (await asset.text()).replaceAll('__ORIGIN__', url.origin)
+        const headers = new Headers(asset.headers)
+        headers.set('Content-Type', 'text/html; charset=utf-8')
+        return new Response(html, { status: asset.status, headers })
+      }
+      return asset
     } catch (err) {
       return new Response(`Error: ${err instanceof Error ? err.message : String(err)}`, {
         status: 500,
@@ -159,13 +187,27 @@ function renderEventPage(event: EventWithName, origin: string): string {
     event.timePrecision === 'date-only'
       ? `${formatDate(event.localDate)} · time not published`
       : `${formatDate(event.localDate)} at ${formatTime(event.localTime)}`
+
+  // A share preview is often all someone sees, so the two things they need are the
+  // meeting and whose meeting it is. Title carries both; the rest goes in the summary.
   const title = `${event.title} — ${event.jurisdictionName}`
-  const description = `${when}${event.location ? ` · ${event.location}` : ''}`
+  const prefix =
+    event.status === 'cancelled' ? 'CANCELLED · ' : event.status === 'rescheduled' ? 'RESCHEDULED · ' : ''
+  const description = `${prefix}${[when, event.location, event.jurisdictionName]
+    .filter(Boolean)
+    .join(' · ')}`
+  // Short enough to paste into a message and stable for the life of the meeting.
+  const canonical = `${origin}/m/${event.shortCode}`
 
   const links: string[] = []
   if (event.agendaUrl) links.push(`<a class="btn" href="${escapeHtml(event.agendaUrl)}">Agenda (PDF)</a>`)
   if (event.minutesUrl) links.push(`<a class="btn" href="${escapeHtml(event.minutesUrl)}">Minutes (PDF)</a>`)
   if (event.url) links.push(`<a class="btn ghost" href="${escapeHtml(event.url)}">View on ${escapeHtml(event.jurisdictionName)}'s site</a>`)
+  links.push(
+    `<button class="btn ghost" type="button" data-share aria-haspopup="dialog"
+       data-share-url="${escapeHtml(canonical)}"
+       data-share-text="${escapeHtml(`${title} · ${when}`)}">Share</button>`,
+  )
 
   const notices: string[] = []
   if (event.status === 'cancelled') notices.push('<p class="notice cancelled">This meeting has been cancelled.</p>')
@@ -182,14 +224,28 @@ function renderEventPage(event: EventWithName, origin: string): string {
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title>
 <meta name="description" content="${escapeHtml(description)}">
+<meta name="theme-color" content="#1c5d4a">
+<link rel="canonical" href="${escapeHtml(canonical)}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Civi-Times">
+<meta property="og:locale" content="en_CA">
+<meta property="og:url" content="${escapeHtml(canonical)}">
 <meta property="og:title" content="${escapeHtml(title)}">
 <meta property="og:description" content="${escapeHtml(description)}">
-<meta property="og:type" content="website">
-<meta name="theme-color" content="#1c5d4a">
+<meta property="og:image" content="${origin}/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Civi-Times — civic meetings across Simcoe County">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="${escapeHtml(title)}">
+<meta name="twitter:description" content="${escapeHtml(description)}">
+<meta name="twitter:image" content="${origin}/og.png">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="stylesheet" href="/style.css">
+<script type="module" src="/share.js"></script>
+<script type="application/ld+json">${eventJsonLd(event, canonical)}</script>
 </head><body class="event-page">
 <header class="topbar"><a href="/" class="home">${MARK}<span>&larr; All meetings</span></a></header>
 <main class="card">
@@ -201,6 +257,35 @@ function renderEventPage(event: EventWithName, origin: string): string {
   <div class="actions">${links.join('')}</div>
   <p class="subscribe"><a href="${origin}/calendar.ics?j=${encodeURIComponent(event.jurisdictionSlug)}">Subscribe to ${escapeHtml(event.jurisdictionName)} meetings</a></p>
 </main></body></html>`
+}
+
+const SCHEMA_STATUS: Record<string, string> = {
+  scheduled: 'https://schema.org/EventScheduled',
+  cancelled: 'https://schema.org/EventCancelled',
+  rescheduled: 'https://schema.org/EventRescheduled',
+}
+
+/**
+ * Structured data, so a shared link can also surface as a rich result rather than a
+ * bare URL. Serialized through JSON.stringify and escaped for `</script>`, since every
+ * value here originates from a municipal calendar.
+ */
+function eventJsonLd(event: EventWithName, canonical: string): string {
+  const data: Record<string, unknown> = {
+    '@context': 'https://schema.org',
+    '@type': 'Event',
+    name: event.title,
+    // A date-only source has no time to publish, so emit a plain date rather than
+    // implying midnight.
+    startDate: event.timePrecision === 'date-only' ? event.localDate : event.startsAtUtc,
+    eventStatus: SCHEMA_STATUS[event.status] ?? SCHEMA_STATUS.scheduled,
+    url: canonical,
+    organizer: { '@type': 'GovernmentOrganization', name: event.jurisdictionName },
+    isAccessibleForFree: true,
+  }
+  if (event.endsAtUtc) data.endDate = event.endsAtUtc
+  if (event.location) data.location = { '@type': 'Place', name: event.location }
+  return JSON.stringify(data).replace(/</g, '\\u003c')
 }
 
 function formatDate(localDate: string): string {

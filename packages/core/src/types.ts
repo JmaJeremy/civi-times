@@ -93,6 +93,8 @@ export interface CanonicalEvent {
   jurisdictionSlug: string
   level: GovLevel
   externalId: string
+  /** Short handle used for shareable links, derived from `id`. */
+  shortCode: string
 
   title: string
   bodyName: string | null

@@ -24,7 +24,29 @@ const state = {
 }
 
 const $ = (id) => document.getElementById(id)
-const todayISO = () => new Date().toISOString().slice(0, 10)
+
+/**
+ * The meetings are Simcoe County's, and every localDate in the data is a wall date in
+ * that zone, so "today" has to be measured there too — not in UTC, and not in the
+ * viewer's own zone.
+ *
+ * toISOString() was the bug: it reports UTC, so from 8pm Eastern onwards it rolled the
+ * date over early and labelled tomorrow's meetings "today". en-CA formats as YYYY-MM-DD,
+ * which is exactly the shape localDate uses.
+ *
+ * This one constant is the only place the zone is assumed. Every source and every event
+ * already carries its own `timezone`, so covering a region outside Eastern means
+ * grouping and relative dates per event's zone rather than against a single site clock —
+ * see docs/known-issues.md.
+ */
+const SITE_TZ = 'America/Toronto'
+const siteDateFormat = new Intl.DateTimeFormat('en-CA', {
+  timeZone: SITE_TZ,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+const todayISO = () => siteDateFormat.format(new Date())
 const thisMonth = () => todayISO().slice(0, 7)
 
 /** Shift 'YYYY-MM' by whole months. Done in UTC so no local DST edge can shift the date. */
@@ -216,7 +238,7 @@ function renderEvent(e) {
   return `<article class="event${e.status === 'cancelled' ? ' is-cancelled' : ''}">
     <div class="time">${time}</div>
     <div>
-      <h3><a href="/event/${encodeURIComponent(e.id)}">${esc(e.title)}</a> ${tags.join(' ')}</h3>
+      <h3><a href="/m/${esc(e.shortCode)}">${esc(e.title)}</a> ${tags.join(' ')}</h3>
       <div class="meta">
         <span class="jur">${esc(e.jurisdictionName)}</span>
         ${e.meetingType && e.meetingType !== e.title ? `<span>${esc(e.meetingType)}</span>` : ''}

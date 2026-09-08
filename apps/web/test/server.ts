@@ -86,6 +86,12 @@ export async function startServer(): Promise<{ url: string; close(): Promise<voi
       const body = await readFile(new URL(name, PUBLIC))
       const ext = name.slice(name.lastIndexOf('.'))
       res.writeHead(200, { 'Content-Type': TYPES[ext] ?? 'application/octet-stream' })
+      // The worker substitutes the serving origin into the shell; mirror it so tests
+      // see the same markup production does.
+      if (name === 'index.html') {
+        const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`
+        return res.end(body.toString('utf8').replaceAll('__ORIGIN__', origin))
+      }
       res.end(body)
     } catch {
       res.writeHead(404).end('not found')

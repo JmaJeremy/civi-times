@@ -31,6 +31,7 @@ export function parseFilters(url: URL): EventFilters {
 interface Row {
   id: string
   source_slug: string
+  short_code: string | null
   title: string
   body_name: string | null
   meeting_type: string | null
@@ -61,6 +62,7 @@ export function rowToEvent(row: Row): CanonicalEvent & { jurisdictionName: strin
     jurisdictionName: row.jurisdiction_name,
     level: row.level as CanonicalEvent['level'],
     externalId: '',
+    shortCode: row.short_code ?? '',
     title: row.title,
     bodyName: row.body_name,
     meetingType: row.meeting_type,

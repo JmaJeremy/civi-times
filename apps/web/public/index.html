@@ -6,8 +6,23 @@
 <title>Civi-Times — civic meetings in Simcoe County</title>
 <meta name="description" content="Every council and committee meeting across Simcoe County, Ontario, in one place. Filter by municipality and committee, and subscribe in your own calendar.">
 <meta name="theme-color" content="#1c5d4a">
+<link rel="canonical" href="__ORIGIN__/">
+<!-- __ORIGIN__ is substituted by the worker with whichever host answered, so shares stay
+     correct on the workers.dev origin today and on civi-times.ca once DNS lands. -->
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Civi-Times">
+<meta property="og:locale" content="en_CA">
+<meta property="og:url" content="__ORIGIN__/">
 <meta property="og:title" content="Civi-Times — civic meetings in Simcoe County">
-<meta property="og:description" content="Every council and committee meeting across Simcoe County, in one place.">
+<meta property="og:description" content="Every council and committee meeting across Simcoe County, Ontario, in one place. Filter by municipality and committee, and subscribe in your own calendar.">
+<meta property="og:image" content="__ORIGIN__/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Civi-Times — every council and committee meeting across Simcoe County, in one place.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Civi-Times — civic meetings in Simcoe County">
+<meta name="twitter:description" content="Every council and committee meeting across Simcoe County, Ontario, in one place.">
+<meta name="twitter:image" content="__ORIGIN__/og.png">
 <link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
@@ -44,6 +59,7 @@
         <button type="button" id="view-list" aria-pressed="true">List</button>
         <button type="button" id="view-calendar" aria-pressed="false">Calendar</button>
       </div>
+      <button class="btn ghost" type="button" data-share aria-haspopup="dialog">Share</button>
       <button class="btn" id="subscribe">Subscribe</button>
     </div>
     <div class="active-filters" id="active"></div>
@@ -98,5 +114,6 @@
 </div>
 
 <script type="module" src="/app.js"></script>
+<script type="module" src="/share.js"></script>
 </body>
 </html>

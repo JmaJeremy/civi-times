@@ -332,11 +332,48 @@ describeIfChrome('calendar view (real browser)', () => {
     expect(chips.reduce((n, c) => n + c.titles.length, 0)).toBe(inMonth.length)
   })
 
+  /** The date in Simcoe County right now, which is what the data's localDate means. */
+  const simcoeToday = () =>
+    new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Toronto',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date())
+
   it('marks today', async () => {
     await page.goto(`${server.url}/?view=calendar`, { waitUntil: 'networkidle0' })
     await page.waitForSelector('.cal-grid')
-    const today = new Date().toISOString().slice(0, 10)
-    expect(await page.$$eval('.cal-day.is-today', (els) => els.map((e) => (e as HTMLElement).dataset.day))).toEqual([today])
+    expect(
+      await page.$$eval('.cal-day.is-today', (els) => els.map((e) => (e as HTMLElement).dataset.day)),
+    ).toEqual([simcoeToday()])
+  })
+
+  it('anchors today to Simcoe County, not to UTC or the viewer', async () => {
+    /*
+     * The original bug: "today" came from toISOString(), which is UTC, so from 8pm
+     * Eastern onward the site rolled over early and labelled tomorrow's meetings
+     * "today". Tokyo is far enough ahead that its date, UTC's date and Toronto's date
+     * are frequently all different, so this pins the anchor rather than the clock.
+     */
+    const far = await browser.newPage()
+    try {
+      await far.emulateTimezone('Asia/Tokyo')
+      await far.goto(`${server.url}/?view=calendar`, { waitUntil: 'networkidle0' })
+      await far.waitForSelector('.cal-grid')
+      const marked = await far.$$eval('.cal-day.is-today', (els) =>
+        els.map((e) => (e as HTMLElement).dataset.day),
+      )
+      expect(marked).toEqual([simcoeToday()])
+
+      const viewerDate = await far.evaluate(() => new Date().toISOString().slice(0, 10))
+      if (viewerDate !== simcoeToday()) {
+        // Only meaningful while the zones actually disagree, which is most of the day.
+        expect(marked[0]).not.toBe(viewerDate)
+      }
+    } finally {
+      await far.close()
+    }
   })
 
   it('pages between months and back to today', async () => {

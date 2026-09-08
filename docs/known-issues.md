@@ -62,7 +62,22 @@ filenames, so:
 It contributes ~6 events versus 17–63 for comparable municipalities. This is a limitation of
 the source, not the adapter; closing it needs a different source or manual entry.
 
-## 4. Ingest is sequential and takes ~50 seconds
+## 4. "Today" is pegged to a single timezone
+
+`SITE_TZ` in `apps/web/public/app.js` hard-codes `America/Toronto`. Every jurisdiction we
+cover is in Eastern, and every `localDate` in the data is a wall date in that zone, so
+this is correct today — and it is deliberately not UTC, which is what previously made the
+site call tomorrow's meetings "today" after 8pm Eastern.
+
+**If coverage expands beyond Eastern**, this becomes wrong: a viewer would see one
+site-wide "today" applied to meetings in several zones. The data model is already ready
+for it — `sources.timezone` and `events.timezone` are per-row, and the server stores a
+true UTC instant alongside the local wall time — so the work is in the client: derive
+"today", the relative-day labels and the day grouping from each event's own zone rather
+than from one constant. The browser tests in `apps/web/test/ui.test.ts` pin the current
+behaviour by emulating a distant viewer timezone.
+
+## 5. Ingest is sequential and takes ~50 seconds
 
 Nineteen sources are fetched one after another to stay polite to small municipal servers and
 well inside a Worker's subrequest budget. Fine at this scale; would need batching or

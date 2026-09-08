@@ -39,6 +39,22 @@ function fnv1a64(input: string): string {
 }
 
 /**
+ * A short, stable handle for an event, for links people paste into messages.
+ *
+ * Derived from the event id, which never changes, so a meeting keeps the same short link
+ * for its whole life. Truncating the id itself was the obvious alternative and does not
+ * work: Essa's ids are date-prefixed slugs, so `2026-06-29-council` and
+ * `2026-06-29-other` share every prefix worth keeping.
+ *
+ * Seven base-36 characters is about 78 billion values against a few hundred events, so a
+ * collision is vanishingly unlikely; the unique index on the column makes one loud rather
+ * than silently serving the wrong meeting.
+ */
+export function shortCode(eventId: string): string {
+  return fnv1a64(eventId).replace(/^0+/, '').slice(0, 7).padStart(7, '0')
+}
+
+/**
  * Hash of the fields a source may legitimately revise after first publishing a meeting.
  *
  * Excludes `externalId` (that is identity, and never changes) and `raw` (noisy: upstream

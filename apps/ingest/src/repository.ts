@@ -74,7 +74,7 @@ export async function loadExisting(
 }
 
 const EVENT_COLUMNS = `
-  id, source_slug, external_id, title, body_name, meeting_type, category,
+  id, source_slug, external_id, short_code, title, body_name, meeting_type, category,
   starts_at_utc, ends_at_utc, local_date, local_time, timezone, time_precision,
   location, url, agenda_url, minutes_url, allows_public_comment, delegation_url,
   status, content_hash, first_seen_at, last_seen_at`
@@ -84,6 +84,7 @@ function bindEvent(event: CanonicalEvent, now: string): unknown[] {
     event.id,
     event.sourceSlug,
     event.externalId,
+    event.shortCode,
     event.title,
     event.bodyName,
     event.meetingType,
@@ -108,13 +109,13 @@ function bindEvent(event: CanonicalEvent, now: string): unknown[] {
 }
 
 export function insertStatements(db: D1Like, events: CanonicalEvent[], now: string): unknown[] {
-  const placeholders = new Array(23).fill('?').join(', ')
+  const placeholders = new Array(24).fill('?').join(', ')
   return events.map((event) =>
     db
       .prepare(
         `INSERT INTO events (${EVENT_COLUMNS}) VALUES (${placeholders})
          ON CONFLICT(id) DO UPDATE SET
-           title = excluded.title, body_name = excluded.body_name,
+           short_code = excluded.short_code, title = excluded.title, body_name = excluded.body_name,
            meeting_type = excluded.meeting_type, category = excluded.category,
            starts_at_utc = excluded.starts_at_utc, ends_at_utc = excluded.ends_at_utc,
            local_date = excluded.local_date, local_time = excluded.local_time,

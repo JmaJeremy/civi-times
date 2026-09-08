@@ -8,7 +8,14 @@
   // Kept on as a fallback origin. Declaring routes turns it off by default, which would
   // leave the site with no reachable URL if the custom domain ever stopped resolving.
   "workers_dev": true,
-  "assets": { "directory": "./public", "binding": "ASSETS" },
+  // Static assets are normally served by the edge without invoking the worker. The shell
+  // must go through it so the share metadata gets the serving origin substituted in;
+  // everything else (css, js, images) still bypasses the worker entirely.
+  "assets": {
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/", "/index.html"]
+  },
   // Custom domains create their own DNS records and certificates. www is attached too,
   // but the worker redirects it to the apex so there is a single canonical origin —
   // iCal feed URLs and event permalinks embed the origin they were generated from.

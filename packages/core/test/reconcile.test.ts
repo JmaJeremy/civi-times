@@ -9,6 +9,7 @@ const event = (over: Partial<CanonicalEvent> = {}): CanonicalEvent => ({
   jurisdictionSlug: 'simcoe-county',
   level: 'county',
   externalId: '1110',
+  shortCode: 'e4f5a6b',
   title: 'Council',
   bodyName: 'Council',
   meetingType: 'Council',
