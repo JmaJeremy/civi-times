@@ -377,8 +377,9 @@ body.modal-open { overflow: hidden; }
 footer { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); color: var(--ink-3); font-size: 13px; }
 footer a { color: var(--ink-2); }
 .support { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
-/* The Buy Me a Coffee script injects its own button here; keep it in the text baseline. */
-.support img { vertical-align: middle; }
+/* width/height attributes are on the img so the footer does not jump while it loads. */
+.support .bmc { display: inline-flex; line-height: 0; border-radius: 8px; }
+.support .bmc:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
 
 /* ---- single event page ---- */
 .event-page { padding: 0 20px 60px; }
