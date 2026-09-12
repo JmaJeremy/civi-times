@@ -61,6 +61,25 @@ const absolute = (host: string, url: string | undefined): string | undefined => 
   return `https://${host}${url.startsWith('/') ? '' : '/'}${url}`
 }
 
+/**
+ * eSCRIBE's own `Url` field is broken at the source. Every tenant emits
+ * `/MeetingsCalendarView.aspx/Meeting?Id={ID}` — the meeting page path with the
+ * calendar page-method path glued on the front — and that 404s. The page that works
+ * is `/Meeting?Id={ID}`. Verified across all five tenants: 454 of 454 non-empty
+ * `Url` values carry the bad prefix, `Id` is the only query parameter, and it always
+ * equals the row's own `ID`.
+ *
+ * The prefix is stripped rather than the link rebuilt from `ID`, so that if eSCRIBE
+ * ever repairs the field or starts adding parameters to it, this quietly becomes a
+ * no-op and their version passes through untouched.
+ *
+ * A blank `Url` stays blank. Those are meetings with no agenda posted yet, and the
+ * page for one renders an empty JavaScript shell — there is nothing to link to, so
+ * we do not invent a link.
+ */
+const meetingPage = (url: string | undefined): string | undefined =>
+  url?.replace(/\/MeetingsCalendarView\.aspx\/Meeting\b/i, '/Meeting')
+
 /** Descriptions arrive as small HTML fragments ("Council Chambers<br/>97 Hurontario St"). */
 function htmlToText(html: string | undefined): string | undefined {
   if (!html) return undefined
@@ -97,7 +116,7 @@ export function mapEscribeMeetings(host: string, meetings: EscribeMeeting[]): Ra
       localStart: meeting.StartDate,
       localEnd: meeting.EndDate,
       location,
-      url: absolute(host, meeting.Url),
+      url: absolute(host, meetingPage(meeting.Url)),
       agendaUrl: absolute(host, pickDocument(docs, AGENDA_TYPES)),
       minutesUrl: absolute(host, pickDocument(docs, MINUTES_TYPES)),
       allowsPublicComment: meeting.AllowPublicComments ?? undefined,

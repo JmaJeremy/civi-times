@@ -119,6 +119,32 @@ describe('escribe adapter', () => {
     expect(normalized.length).toBeGreaterThan(0)
   })
 
+  it('repairs the broken meeting-page path eSCRIBE publishes in its own Url field', () => {
+    const events = mapEscribeMeetings('pub-barrie.escribemeetings.com', meetings)
+    const linked = events.filter((e) => e.url)
+
+    // Upstream sends /MeetingsCalendarView.aspx/Meeting?Id=..., which 404s.
+    expect(linked.length).toBeGreaterThan(0)
+    for (const event of linked) {
+      expect(event.url).not.toContain('MeetingsCalendarView.aspx')
+      expect(event.url).toMatch(
+        /^https:\/\/pub-barrie\.escribemeetings\.com\/Meeting\?Id=[0-9a-f-]{36}$/,
+      )
+    }
+  })
+
+  it('leaves the source link blank when eSCRIBE publishes no Url', () => {
+    // A blank Url means no agenda is posted; that page is an empty shell, so there is
+    // nothing to link to and we must not synthesise a link from the ID.
+    const events = mapEscribeMeetings('pub-barrie.escribemeetings.com', meetings)
+    const blanks = meetings.filter((m) => !m.Url)
+
+    expect(blanks.length).toBeGreaterThan(0)
+    for (const meeting of blanks) {
+      expect(events.find((e) => e.externalId === meeting.ID)!.url).toBeUndefined()
+    }
+  })
+
   it('truncates the meaningless seconds eSCRIBE puts in StartDate', () => {
     const source = sourceBySlug('barrie')!
     const raw = mapEscribeMeetings('pub-barrie.escribemeetings.com', meetings)

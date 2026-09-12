@@ -91,6 +91,14 @@ The old script was built on two premises that are both false today:
 - **eSCRIBE's `StartDate` seconds are meaningless** — an incrementing counter, not a time.
   Normalization truncates to the minute.
 
+- **eSCRIBE's `Url` field points at a 404 and must be repaired.** Every tenant publishes
+  `/MeetingsCalendarView.aspx/Meeting?Id={ID}` — the meeting page with the calendar's
+  page-method path glued on the front. The page that exists is `/Meeting?Id={ID}`. The
+  adapter strips the prefix rather than rebuilding the link from `ID`, so an upstream fix
+  would pass straight through. Do **not** "simplify" this back to passing `meeting.Url`
+  through unchanged. A blank `Url` is left blank on purpose: those meetings have no agenda
+  posted and their page renders an empty JavaScript shell, so there is nothing to link to.
+
 - **An empty `MeetingTime` means no time was published, not midnight.** Five CivicWeb
   municipalities do this; `MeetingDateTime` then reads `"2026-09-16 00:00"`. Taking that
   literally showed "12:00 a.m." on the site and exported a midnight appointment to iCal
