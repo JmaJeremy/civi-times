@@ -90,7 +90,16 @@ export async function startServer(): Promise<{ url: string; close(): Promise<voi
       // see the same markup production does.
       if (name === 'index.html') {
         const origin = `http://127.0.0.1:${(server.address() as { port: number }).port}`
-        return res.end(body.toString('utf8').replaceAll('__ORIGIN__', origin))
+        const links = PLACES.map(
+          (p) =>
+            `<a href="/place/${p.slug}">${p.name.replace(/^(City|Town|Township|County|Municipality) of /, '')}</a>`,
+        ).join(' · ')
+        return res.end(
+          body
+            .toString('utf8')
+            .replaceAll('__ORIGIN__', origin)
+            .replaceAll('__PLACE_LINKS__', links),
+        )
       }
       res.end(body)
     } catch {

@@ -434,6 +434,47 @@ footer a { color: var(--ink-2); }
 .event-page .notice.speak { background: var(--speak-bg); color: var(--speak); }
 .event-page .actions { display: flex; flex-wrap: wrap; gap: 9px; margin: 18px 0 0; }
 .event-page .subscribe { margin: 20px 0 0; padding-top: 16px; border-top: 1px solid var(--line); font-size: 14px; }
+.event-page .lead { margin: 0 0 20px; color: var(--ink-2); }
+
+/* Breadcrumbs. A permalink reached from a shared link is otherwise a dead end: nothing
+   in "/m/k3f9a2p" says which municipality it belongs to. */
+.crumbs { margin: 0 0 14px; font-size: 13px; color: var(--ink-3); }
+.crumbs ol { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.crumbs li + li::before { content: "›"; margin-right: 6px; color: var(--ink-3); }
+.crumbs a { color: var(--ink-2); }
+
+/* ---- municipality page ---- */
+.place-page .card { max-width: 780px; }
+.place-page h2 {
+  margin: 30px 0 12px; padding-top: 18px; border-top: 1px solid var(--line);
+  font: 700 17px/1.3 ui-serif, Georgia, serif;
+}
+.place-page .meetings { margin: 0; padding: 0; list-style: none; }
+.place-page .meetings li {
+  padding: 11px 0; border-bottom: 1px solid var(--line);
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px;
+}
+.place-page .meetings li:last-child { border-bottom: none; }
+.place-page .meetings a { font-weight: 600; color: var(--ink); }
+.place-page .row-when { flex: 1 1 100%; color: var(--ink-2); font-size: 13.5px; }
+/* Past meetings are reference material, not a call to action, so they recede. */
+.place-page .meetings.past a { font-weight: 500; color: var(--ink-2); }
+.place-page .flag {
+  border-radius: 999px; padding: 1px 7px; font-size: 11.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.place-page .flag.stop { background: var(--stop-bg); color: var(--stop); }
+.place-page .flag.warn { background: var(--warn-bg); color: var(--warn); }
+.place-page .empty { margin: 0; color: var(--ink-2); }
+.place-page .other-places ul {
+  display: flex; flex-wrap: wrap; gap: 6px 14px;
+  margin: 0; padding: 0; list-style: none; font-size: 14px;
+}
+
+/* The home page's crawlable index of the nineteen municipality pages. */
+.place-index { margin-top: 18px; }
+.place-index h2 { margin: 0 0 4px; font-size: 13px; font-weight: 700; color: var(--ink-2); }
+.place-index p { margin: 0; line-height: 1.9; }
 
 @media (max-width: 760px) {
   /* Chips cannot be read in a cell this narrow, so show dots and let tapping a day

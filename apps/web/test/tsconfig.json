@@ -1,0 +1,9 @@
+{
+  // A separate project because these files are not worker code. `page.evaluate` bodies are
+  // serialized and run inside the browser, so they legitimately reference `document` and
+  // `HTMLElement` — which the worker must never see. Keeping DOM in the lib here rather
+  // than in apps/web/tsconfig.json is what preserves that distinction.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": { "lib": ["ES2023", "DOM", "DOM.Iterable"] },
+  "include": ["**/*.ts"]
+}
