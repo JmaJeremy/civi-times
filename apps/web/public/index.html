@@ -1,18 +1,22 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-CA">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Civi-Times — civic meetings in Simcoe County</title>
-<meta name="description" content="Every council and committee meeting across Simcoe County, Ontario, in one place. Filter by municipality and committee, and subscribe in your own calendar.">
+<title>Simcoe County council meetings — Civi-Times</title>
+<meta name="description" content="Every council and committee meeting across all 19 Simcoe County municipalities in one place — Barrie, Orillia, Collingwood, Innisfil and more. Filter by municipality and committee, read the agenda, and subscribe in your own calendar.">
 <meta name="theme-color" content="#1c5d4a">
-<link rel="canonical" href="__ORIGIN__/">
-<!-- __ORIGIN__ is substituted by the worker with whichever host answered, so shares stay
-     correct on the workers.dev origin today and on civi-times.ca once DNS lands. -->
+<!-- Hard-coded, unlike the og: tags below. The identical site also answers on the
+     workers.dev fallback origin, so a canonical that named whichever host replied would
+     hand search engines two competing copies and let them choose. This names one. -->
+<link rel="canonical" href="https://civi-times.ca/">
+<link rel="alternate" type="text/calendar" title="Civi-Times — every Simcoe County meeting (iCal)" href="__ORIGIN__/calendar.ics">
+<!-- __ORIGIN__ is substituted by the worker with whichever host answered, so images and
+     feeds keep loading even when the apex is the thing that is down. -->
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Civi-Times">
 <meta property="og:locale" content="en_CA">
-<meta property="og:url" content="__ORIGIN__/">
+<meta property="og:url" content="https://civi-times.ca/">
 <meta property="og:title" content="Civi-Times — civic meetings in Simcoe County">
 <meta property="og:description" content="Every council and committee meeting across Simcoe County, Ontario, in one place. Filter by municipality and committee, and subscribe in your own calendar.">
 <meta property="og:image" content="__ORIGIN__/og.png">
@@ -28,6 +32,7 @@
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <link rel="manifest" href="/manifest.json">
 <link rel="stylesheet" href="/style.css">
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebSite","name":"Civi-Times","alternateName":"Civi-Times Simcoe County meeting calendar","url":"https://civi-times.ca/","description":"Every council and committee meeting across Simcoe County, Ontario, in one place.","inLanguage":"en-CA","publisher":{"@type":"Organization","name":"Civi-Times","url":"https://civi-times.ca/","logo":"__ORIGIN__/icon-512.png"},"about":{"@type":"AdministrativeArea","name":"Simcoe County","address":{"@type":"PostalAddress","addressRegion":"ON","addressCountry":"CA"}}}</script>
 </head>
 <body>
 <div class="wrap">
@@ -79,6 +84,15 @@
   <footer>
     <p>Meeting data is collected from each municipality's own public calendar and links back to the source.
        Always confirm details with the municipality before attending.</p>
+    <!-- Server-substituted from SOURCES. These nineteen links are the only crawlable path
+         from the site's strongest page to the per-municipality pages, and from there to
+         every meeting permalink; the filter menus above are built from JSON after load.
+         Short names here, legal names in the sources line below, because these two lists
+         otherwise read as the same list printed twice. -->
+    <nav class="place-index" aria-label="Meetings by municipality">
+      <h2>Meetings by municipality</h2>
+      <p>__PLACE_LINKS__</p>
+    </nav>
     <p id="sources-line"></p>
     <p class="support">Civi-Times is a hobby project, free and without ads.
       <a class="bmc" href="https://www.buymeacoffee.com/hZEeGL3" target="_blank" rel="noopener noreferrer">

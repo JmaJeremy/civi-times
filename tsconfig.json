@@ -1,0 +1,12 @@
+{
+  // The solution root. `tsc --build` needs a project to start from; without this file
+  // `npm run typecheck` fails before compiling anything.
+  "files": [],
+  "references": [
+    { "path": "packages/core" },
+    { "path": "packages/adapters" },
+    { "path": "apps/ingest" },
+    { "path": "apps/web" },
+    { "path": "apps/web/test" }
+  ]
+}
