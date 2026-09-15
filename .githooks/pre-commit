@@ -1,0 +1,17 @@
+#!/bin/sh
+# Refuse any commit whose staged changes contain a secret.
+#
+# .env sits in the working tree holding a Cloudflare API token, so one careless
+# `git add -A` is all it takes to publish it. .gitignore is the first line of
+# defence; this is the backstop for everything .gitignore does not cover.
+#
+# Fails closed: a missing scanner blocks the commit rather than waving it through.
+
+if ! command -v gitleaks >/dev/null 2>&1; then
+  echo "pre-commit: gitleaks is not installed, so this commit cannot be checked for secrets." >&2
+  echo "pre-commit: install it with 'brew install gitleaks' (https://github.com/gitleaks/gitleaks)." >&2
+  exit 1
+fi
+
+# --redact keeps a detected secret out of the terminal and any scrollback.
+exec gitleaks git --pre-commit --staged --redact --no-banner --verbose

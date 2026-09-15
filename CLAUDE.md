@@ -255,3 +255,6 @@ subscriptions between them.
 
 `.env` holds the Cloudflare credentials and the ingest token and is gitignored — keep it
 that way; `git add -A` would otherwise commit an API token.
+The backstop is a gitleaks pre-commit hook in `.githooks/`, wired up by the `prepare`
+script on `npm install`. It fails closed when gitleaks is missing. Never get a commit
+through with `--no-verify` — a blocked commit means a secret is staged; unstage it.
