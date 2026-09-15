@@ -10,3 +10,5 @@ scratch/
 .env
 .env.*
 !.env.example
+
+*.tsbuildinfo

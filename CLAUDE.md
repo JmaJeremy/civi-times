@@ -122,6 +122,12 @@ stuck open and the search unable to hide the rows it filtered. **Hence the globa
 assert on `element.checkVisibility()` rather than the `hidden` property, since the latter
 was set correctly the whole time.
 
+`apps/web/test/` is its own TypeScript project, referenced separately from the root
+`tsconfig.json`. That is not tidiness: the bodies passed to `page.evaluate` are serialized
+and run inside the browser, so they need `DOM` in `lib` — while the worker in
+`apps/web/src/` must never see `document`. Merging the two configs gives worker code
+globals it does not have at runtime.
+
 The remaining tests are fixture-based and hit no network. Fixtures in
 [packages/adapters/test/fixtures/](packages/adapters/test/fixtures/) are real captured
 responses. When adapter behaviour changes, re-capture rather than hand-editing — the point
