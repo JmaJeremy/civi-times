@@ -34,7 +34,7 @@ A full dry run takes ~50s and currently yields ~649 events across 19/19 sources.
 packages/core/       types, timezone maths, identity, normalization, reconciliation, iCal
 packages/adapters/   one module per PLATFORM (not per municipality) + shared HTTP
 apps/ingest/         pipeline + dry-run CLI (Worker scheduled handler still to come)
-apps/web/            not yet built
+apps/web/            the site: a static shell plus a worker that server-renders the SEO surface
 ```
 
 **The central rule: adapters are per-platform, sources are per-jurisdiction.** Three
@@ -171,14 +171,43 @@ Two things about that dialog are load-bearing and easy to undo by accident:
 Every page carries full Open Graph and Twitter Card metadata plus a 1200×630 `og.png`;
 meeting pages also emit schema.org `Event` JSON-LD. Share URLs must be ABSOLUTE, but the
 shell is a static file with no idea which host served it, so `index.html` contains
-`__ORIGIN__` placeholders that the worker substitutes with the serving origin. That needs
+`__ORIGIN__` and `__PLACE_LINKS__` placeholders that the worker substitutes. That needs
 `run_worker_first: ["/", "/index.html"]` in `wrangler.jsonc` — without it Cloudflare's
-asset router serves the shell directly and the placeholder ships to users verbatim.
+asset router serves the shell directly and the placeholders ship to users verbatim.
 
 Meetings live at `/m/{short_code}` — seven base-36 characters derived from the event id
 (`shortCode()` in core), stored with a unique index. Truncating the id instead does not
 work: Essa's ids are date-prefixed slugs that share every useful prefix. `/event/{id}`
 still resolves and 301s to the short form so there is one canonical URL.
+
+## Search
+
+Three server-rendered surfaces, all in `apps/web/src/`: `html.ts` builds the head every
+page shares, `pages.ts` renders meetings, municipalities and the 404, `sitemap.ts` emits
+`/robots.txt` and `/sitemap.xml`. `apps/web/test/seo.test.ts` covers them against a stub
+database — metadata is invisible when it breaks, so nothing here is checked by eye.
+
+- **`CANONICAL_ORIGIN` is not `url.origin`, and that is deliberate.** The workers.dev
+  fallback serves the identical site, so every canonical, `og:url`, sitemap `<loc>` and
+  JSON-LD `url` names `https://civi-times.ca` no matter which host answered — otherwise
+  two hosts compete for the same queries and the search engine picks the winner. What a
+  page *loads* (`og:image`, the iCal feed) still uses the serving origin, or the fallback
+  would stop working as a fallback. Responses from any other host also carry
+  `X-Robots-Tag: noindex, follow`, and robots.txt there deliberately still allows
+  crawling: `Disallow: /` would stop a crawler ever reading the header that does the work.
+
+- **`/place/{slug}` exists as much for crawlers as for readers.** The home page is a
+  filterable app — every view of it is a query string, rendered from JSON after load — so
+  nothing on the site was *about* one municipality, and `/m/{code}` permalinks were
+  reachable only from a link someone had already shared. The nineteen place pages are the
+  crawlable path to all of them, and the `__PLACE_LINKS__` block in the footer is the
+  crawlable path to the place pages. Remove either and the meeting permalinks are orphans
+  in the sitemap again.
+
+- **Event JSON-LD needs a `location` carrying an `address`.** Google treats one without
+  as an error, not a warning, and "Council Chambers" is not an address. Neither platform
+  publishes a street address, so `REGION_ADDRESS` supplies the province and country that
+  are known to be true rather than inventing a line that is not.
 
 ## Deployment
 
